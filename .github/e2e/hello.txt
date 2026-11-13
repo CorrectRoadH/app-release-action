@@ -1,0 +1,1 @@
+Application release action smoke test.

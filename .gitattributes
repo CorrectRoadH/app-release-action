@@ -1,0 +1,2 @@
+# Bundles contain upstream comments and string literals; preserve them verbatim.
+dist/* linguist-generated=true -whitespace

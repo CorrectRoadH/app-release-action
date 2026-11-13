@@ -1,0 +1,52 @@
+name: Application release
+description: Build OCI images, push immutable version tags to GHCR, and request an OIDC authenticated deployment
+branding:
+  icon: upload-cloud
+  color: blue
+inputs:
+  app:
+    description: Registered application name
+    required: true
+  components:
+    description: YAML component list (name, context, dockerfile, target, build-args)
+    required: true
+  platform:
+    description: Single build platform registered for the application
+    default: linux/arm64
+  image-prefix:
+    description: GHCR repository prefix (defaults to ghcr.io/<repository owner>/<app>)
+  deployer-url:
+    description: Deployer HTTP(S) origin reachable through the Tailnet (required when deploy is true)
+  tailscale-client-id:
+    description: Public OIDC client ID (required when deploy is true)
+  tailscale-audience:
+    description: Public OIDC audience (required when deploy is true)
+  github-token:
+    description: Current repository token for GHCR and GitHub metadata
+    default: ${{ github.token }}
+  upstream-revision:
+    description: Optional full upstream source commit SHA
+  deploy:
+    description: Request deployment after building and pushing
+    default: "true"
+  timeout:
+    description: Time limit for requesting and polling deployment (s, m or h)
+    default: 15m
+outputs:
+  version:
+    description: UTC date and run number/attempt version tag
+  release-id:
+    description: Deployer release ID (empty for deploy=false)
+  status:
+    description: Final release status (built for deploy=false)
+  infra-commit:
+    description: Infrastructure write-back commit SHA
+  digests:
+    description: JSON object mapping component names to pushed digests
+  record:
+    description: Path to app-release/v1 JSON record
+runs:
+  using: node24
+  main: dist/index.cjs
+  post: dist/post.cjs
+  post-if: always()

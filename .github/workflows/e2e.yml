@@ -1,0 +1,49 @@
+name: Build and push smoke test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  packages: write
+  id-token: write
+concurrency:
+  group: app-release-e2e
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Prepare image prefix
+        id: image
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "prefix=ghcr.io/${OWNER,,}/app-release-action-e2e" >> "$GITHUB_OUTPUT"
+      - name: Build and push without deployment
+        id: release
+        uses: ./
+        with:
+          app: action-e2e
+          image-prefix: ${{ steps.image.outputs.prefix }}
+          platform: linux/amd64
+          deploy: "false"
+          components: |
+            - name: app
+              context: .github/e2e
+      - name: Verify build record
+        env:
+          RECORD: ${{ steps.release.outputs.record }}
+          STATUS: ${{ steps.release.outputs.status }}
+          RELEASE_ID: ${{ steps.release.outputs.release-id }}
+        run: |
+          test "$STATUS" = built
+          test -z "$RELEASE_ID"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import assert from "node:assert/strict";
+            const record = JSON.parse(readFileSync(process.env.RECORD, "utf8"));
+            assert.equal(record.schema, "app-release/v1");
+            assert.equal(record.result.status, "built");
+            assert.match(record.components[0].digest, /^sha256:[a-f0-9]{64}$/);
+            assert.equal(record.components[0].layers, 1);
+          '
