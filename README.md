@@ -56,6 +56,7 @@ The permissions allow checking out source and reading commit timestamps (`conten
 | `platform`            | `linux/arm64`                | Single platform matching deployment registration                                               |
 | `image-prefix`        | `ghcr.io/<repository owner>/<app>` | Repository prefix; normally use the registered value                                           |
 | `deployer-url`        | None                         | Deployer HTTP(S) origin reachable through the Tailnet; required for deployment |
+| `network`             | `tailscale`                  | `tailscale` joins the Tailnet with OIDC; `direct` skips it when the runner already reaches the deployer (for example an in-cluster runner) |
 | `tailscale-client-id` | None                         | Public OIDC client ID; required for deployment                                                 |
 | `tailscale-audience`  | None                         | Public OIDC audience; required for deployment                                                  |
 | `github-token`        | `${{ github.token }}`        | Repository token for GHCR and metadata APIs                                                    |

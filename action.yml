@@ -17,6 +17,9 @@ inputs:
     description: GHCR repository prefix (defaults to ghcr.io/<repository owner>/<app>)
   deployer-url:
     description: Deployer HTTP(S) origin reachable through the Tailnet (required when deploy is true)
+  network:
+    description: How to reach the deployer - tailscale (join with OIDC) or direct (runner already has a route)
+    default: tailscale
   tailscale-client-id:
     description: Public OIDC client ID (required when deploy is true)
   tailscale-audience:

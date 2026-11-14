@@ -213,16 +213,19 @@ export async function execute(
     record.result.status = "built";
     return;
   }
-  const tailscaleDir = join(directory, "tailscale");
-  await mkdir(tailscaleDir, { recursive: true });
-  await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
-  deps.state("tailscale", tailscaleDir);
-  await connectTailscale(
-    tailscaleDir,
-    inputs,
-    deps.exec,
-    deps.existingTailscale,
-  );
+  // direct: the runner already reaches the deployer (e.g. an in-cluster runner).
+  if (inputs.network === "tailscale") {
+    const tailscaleDir = join(directory, "tailscale");
+    await mkdir(tailscaleDir, { recursive: true });
+    await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
+    deps.state("tailscale", tailscaleDir);
+    await connectTailscale(
+      tailscaleDir,
+      inputs,
+      deps.exec,
+      deps.existingTailscale,
+    );
+  }
   await deploy(
     record,
     inputs.deployerUrl,

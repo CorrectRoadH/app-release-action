@@ -110,3 +110,13 @@ describe("inputs and version", () => {
     expect(() => version(new Date(), 0, 1)).toThrow();
   });
 });
+describe("network", () => {
+  it("allows direct deployment without Tailscale inputs", () => {
+    const i = parse({ deploy: "true", network: "direct", "deployer-url": "http://deployer.example:2224" });
+    expect(i.network).toBe("direct");
+  });
+  it("still requires Tailscale inputs in tailscale mode and rejects unknown modes", () => {
+    expect(() => parse({ deploy: "true", "deployer-url": "http://d.example" })).toThrow(/tailscale-client-id/);
+    expect(() => parse({ network: "vpn" })).toThrow(/network/);
+  });
+});

@@ -15,6 +15,7 @@ export interface Inputs {
   deployerUrl: string;
   tailscaleClientId: string;
   tailscaleAudience: string;
+  network: "tailscale" | "direct";
   upstreamRevision?: string;
   deploy: boolean;
   timeoutMs: number;
@@ -109,7 +110,14 @@ export function parseInputs(get: (name: string) => string): Inputs {
     invalid("deploy must be true or false");
   const tailscaleClientId = get("tailscale-client-id");
   const tailscaleAudience = get("tailscale-audience");
-  if (deploy === "true" && (!tailscaleClientId || !tailscaleAudience))
+  const network = (get("network") || "tailscale") as Inputs["network"];
+  if (network !== "tailscale" && network !== "direct")
+    invalid("network must be tailscale or direct");
+  if (
+    deploy === "true" &&
+    network === "tailscale" &&
+    (!tailscaleClientId || !tailscaleAudience)
+  )
     invalid("deploy=true requires tailscale-client-id and tailscale-audience");
   const deployerUrl = get("deployer-url");
   if (deploy === "true" && !deployerUrl)
@@ -152,6 +160,7 @@ export function parseInputs(get: (name: string) => string): Inputs {
     deployerUrl: deployerUrl.replace(/\/$/, ""),
     tailscaleClientId,
     tailscaleAudience,
+    network,
     upstreamRevision,
     deploy: deploy === "true",
     timeoutMs,

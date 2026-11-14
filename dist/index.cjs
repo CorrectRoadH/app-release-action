@@ -27140,7 +27140,10 @@ function parseInputs(get) {
     invalid("deploy must be true or false");
   const tailscaleClientId = get("tailscale-client-id");
   const tailscaleAudience = get("tailscale-audience");
-  if (deploy2 === "true" && (!tailscaleClientId || !tailscaleAudience))
+  const network = get("network") || "tailscale";
+  if (network !== "tailscale" && network !== "direct")
+    invalid("network must be tailscale or direct");
+  if (deploy2 === "true" && network === "tailscale" && (!tailscaleClientId || !tailscaleAudience))
     invalid("deploy=true requires tailscale-client-id and tailscale-audience");
   const deployerUrl = get("deployer-url");
   if (deploy2 === "true" && !deployerUrl)
@@ -27167,6 +27170,7 @@ function parseInputs(get) {
     deployerUrl: deployerUrl.replace(/\/$/, ""),
     tailscaleClientId,
     tailscaleAudience,
+    network,
     upstreamRevision,
     deploy: deploy2 === "true",
     timeoutMs
@@ -28032,16 +28036,18 @@ ${error2.detail}
     record.result.status = "built";
     return;
   }
-  const tailscaleDir = (0, import_node_path3.join)(directory, "tailscale");
-  await (0, import_promises4.mkdir)(tailscaleDir, { recursive: true });
-  await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
-  deps.state("tailscale", tailscaleDir);
-  await connectTailscale(
-    tailscaleDir,
-    inputs,
-    deps.exec,
-    deps.existingTailscale
-  );
+  if (inputs.network === "tailscale") {
+    const tailscaleDir = (0, import_node_path3.join)(directory, "tailscale");
+    await (0, import_promises4.mkdir)(tailscaleDir, { recursive: true });
+    await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
+    deps.state("tailscale", tailscaleDir);
+    await connectTailscale(
+      tailscaleDir,
+      inputs,
+      deps.exec,
+      deps.existingTailscale
+    );
+  }
   await deploy(
     record,
     inputs.deployerUrl,
