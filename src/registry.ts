@@ -9,19 +9,41 @@ export class Registry {
     private credential: string,
     private fetcher: Fetch,
   ) {}
+  private async read(
+    url: string,
+    init: RequestInit & { method?: "GET" | "HEAD" },
+  ): Promise<Response> {
+    // Registry authentication and inspection use only idempotent GET/HEAD.
+    // A transient connection failure must not discard a completed image build.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const response = await request(this.fetcher, url, init, "registry");
+        if (
+          attempt === 2 ||
+          ![429, 500, 502, 503, 504].includes(response.status)
+        ) return response;
+        await response.body?.cancel().catch(() => {});
+      } catch (error) {
+        if (
+          attempt === 2 ||
+          !(error instanceof ActionError) ||
+          error.code !== "upstream_unavailable"
+        ) throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+    }
+  }
   private async authorize(): Promise<void> {
     const url = new URL("https://ghcr.io/token");
     url.searchParams.set("service", "ghcr.io");
     url.searchParams.set("scope", `repository:${this.repository}:pull,push`);
-    const response = await request(
-      this.fetcher,
+    const response = await this.read(
       url.href,
       {
         headers: {
           Authorization: `Basic ${Buffer.from(`${this.actor}:${this.credential}`).toString("base64")}`,
         },
       },
-      "registry",
     );
     if (!response.ok)
       throw new ActionError(
@@ -38,11 +60,10 @@ export class Registry {
       );
     this.token = body.token;
   }
-  private async call(path: string, method: string): Promise<Response> {
+  private async call(path: string, method: "GET" | "HEAD"): Promise<Response> {
     if (!this.token) await this.authorize();
     const call = () =>
-      request(
-        this.fetcher,
+      this.read(
         `https://ghcr.io/v2/${this.repository}/${path}`,
         {
           method,
@@ -52,7 +73,6 @@ export class Registry {
               "application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json",
           },
         },
-        "registry",
       );
     let response = await call();
     if (response.status === 401) {

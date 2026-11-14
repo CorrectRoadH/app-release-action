@@ -27467,19 +27467,30 @@ var Registry = class {
   credential;
   fetcher;
   token = "";
+  async read(url, init) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const response = await request(this.fetcher, url, init, "registry");
+        if (attempt === 2 || ![429, 500, 502, 503, 504].includes(response.status)) return response;
+        await response.body?.cancel().catch(() => {
+        });
+      } catch (error2) {
+        if (attempt === 2 || !(error2 instanceof ActionError) || error2.code !== "upstream_unavailable") throw error2;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+    }
+  }
   async authorize() {
     const url = new URL("https://ghcr.io/token");
     url.searchParams.set("service", "ghcr.io");
     url.searchParams.set("scope", `repository:${this.repository}:pull,push`);
-    const response = await request(
-      this.fetcher,
+    const response = await this.read(
       url.href,
       {
         headers: {
           Authorization: `Basic ${Buffer.from(`${this.actor}:${this.credential}`).toString("base64")}`
         }
-      },
-      "registry"
+      }
     );
     if (!response.ok)
       throw new ActionError(
@@ -27498,8 +27509,7 @@ var Registry = class {
   }
   async call(path, method) {
     if (!this.token) await this.authorize();
-    const call = () => request(
-      this.fetcher,
+    const call = () => this.read(
       `https://ghcr.io/v2/${this.repository}/${path}`,
       {
         method,
@@ -27507,8 +27517,7 @@ var Registry = class {
           Authorization: `Bearer ${this.token}`,
           Accept: "application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json"
         }
-      },
-      "registry"
+      }
     );
     let response = await call();
     if (response.status === 401) {

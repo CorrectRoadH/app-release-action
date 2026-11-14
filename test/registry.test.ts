@@ -34,6 +34,47 @@ it.each([401, 403, 429, 500])(
     ).rejects.toMatchObject({ code: "registry_head_failed" });
   },
 );
+it.each(["network", "unavailable"])(
+  "recovers from one transient registry %s failure",
+  async (failure) => {
+    vi.useFakeTimers();
+    try {
+      let reads = 0;
+      const registry = new Registry("owner/image", "actor", "secret", async (url) => {
+        if (String(url).includes("/token?")) return Response.json({ token: "secret" });
+        if (++reads === 1) {
+          if (failure === "network") throw new TypeError("fetch failed");
+          return new Response(null, { status: 503 });
+        }
+        return new Response(null, { status: 200 });
+      });
+      const result = registry.exists("sha256:" + "a".repeat(64));
+      await vi.runAllTimersAsync();
+      expect(await result).toBe(true);
+      expect(reads).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+it("bounds network retries and never treats an unreachable registry as a missing layer", async () => {
+  vi.useFakeTimers();
+  try {
+    let reads = 0;
+    const registry = new Registry("owner/image", "actor", "secret", async (url) => {
+      if (String(url).includes("/token?")) return Response.json({ token: "secret" });
+      reads++;
+      throw new TypeError("fetch failed with private-token");
+    });
+    const rejected = expect(registry.exists("sha256:" + "a".repeat(64)))
+      .rejects.toMatchObject({ code: "upstream_unavailable", message: "Network request failed during registry" });
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(reads).toBe(3);
+  } finally {
+    vi.useRealTimers();
+  }
+});
 it("rejects an already-published immutable tag", async () => {
   const registry = new Registry(
     "owner/image",
