@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, rm, writeFile, appendFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, appendFile, readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import * as core from "@actions/core";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -31,10 +32,29 @@ export const reporter: Reporter = {
   log: core.info,
   failed: core.setFailed,
   artifact: async (path, root) => {
+    const quotaMarker = `${path}.quota-exceeded`;
+    await rm(quotaMarker, { force: true });
     await run(process.execPath, [join(__dirname, "artifact.cjs"), path, root], {
       phase: "artifact",
       timeoutMs: 120000,
     });
+    if (existsSync(quotaMarker)) {
+      if (!process.env.GITHUB_STEP_SUMMARY)
+        throw new ActionError(
+          "artifact_quota_exceeded",
+          "artifact",
+          "Artifact storage quota exhausted and no job summary is available",
+        );
+      const record = (await readFile(path, "utf8")).replaceAll("<", "\\u003c");
+      await appendFile(
+        process.env.GITHUB_STEP_SUMMARY,
+        `\nArtifact storage quota exhausted. The complete release record is preserved below.\n\n<details><summary>Full release record</summary>\n\n\`\`\`json\n${record}\`\`\`\n\n</details>\n`,
+      );
+      core.warning(
+        "artifact_quota_exceeded: GitHub artifact storage is full; the complete release record is in the job summary. Release status is unchanged.",
+      );
+      await rm(quotaMarker);
+    }
   },
 };
 export async function runAction(

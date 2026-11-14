@@ -105757,11 +105757,13 @@ If the error persists, please check whether Actions and API requests are operati
 var client = new DefaultArtifactClient();
 
 // src/artifact-main.ts
+var import_node_fs2 = require("node:fs");
 var [path4, root] = process.argv.slice(2);
 if (!path4 || !root) process.exitCode = 1;
 else
-  new DefaultArtifactClient().uploadArtifact("app-release-record", [path4], root, { retentionDays: 14 }).catch(() => {
-    process.exitCode = 1;
+  new DefaultArtifactClient().uploadArtifact("app-release-record", [path4], root, { retentionDays: 14 }).catch((error2) => {
+    if (error2 instanceof Error && error2.message.includes("Artifact storage quota has been hit")) (0, import_node_fs2.writeFileSync)(`${path4}.quota-exceeded`, "artifact_quota_exceeded\n");
+    else process.exitCode = 1;
   });
 /*! Bundled license information:
 

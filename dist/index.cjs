@@ -20788,12 +20788,12 @@ var require_log = __commonJS({
       if (logLevel === "debug")
         console.log(...messages);
     }
-    function warn(logLevel, warning) {
+    function warn(logLevel, warning2) {
       if (logLevel === "debug" || logLevel === "warn") {
         if (typeof node_process.emitWarning === "function")
-          node_process.emitWarning(warning);
+          node_process.emitWarning(warning2);
         else
-          console.warn(warning);
+          console.warn(warning2);
       }
     }
     exports2.debug = debug2;
@@ -24263,9 +24263,9 @@ var require_composer = __commonJS({
         this.prelude = [];
         this.errors = [];
         this.warnings = [];
-        this.onError = (source, code, message, warning) => {
+        this.onError = (source, code, message, warning2) => {
           const pos = getErrorPos(source);
-          if (warning)
+          if (warning2)
             this.warnings.push(new errors.YAMLWarning(pos, code, message));
           else
             this.errors.push(new errors.YAMLParseError(pos, code, message));
@@ -24338,10 +24338,10 @@ ${cb}` : comment;
           console.dir(token, { depth: null });
         switch (token.type) {
           case "directive":
-            this.directives.add(token.source, (offset, message, warning) => {
+            this.directives.add(token.source, (offset, message, warning2) => {
               const pos = getErrorPos(token);
               pos[0] += offset;
-              this.onError(pos, "BAD_DIRECTIVE", message, warning);
+              this.onError(pos, "BAD_DIRECTIVE", message, warning2);
             });
             this.prelude.push(token.source);
             this.atDirectives = true;
@@ -26383,7 +26383,7 @@ var require_public_api = __commonJS({
       const doc = parseDocument(src, options);
       if (!doc)
         return null;
-      doc.warnings.forEach((warning) => log.warn(doc.options.logLevel, warning));
+      doc.warnings.forEach((warning2) => log.warn(doc.options.logLevel, warning2));
       if (doc.errors.length > 0) {
         if (doc.options.logLevel !== "silent")
           throw doc.errors[0];
@@ -26961,6 +26961,9 @@ function setFailed(message) {
 function error(message, properties = {}) {
   issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
+function warning(message, properties = {}) {
+  issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
 function info(message) {
   process.stdout.write(message + os4.EOL);
 }
@@ -26974,6 +26977,7 @@ function saveState(name2, value) {
 
 // src/runner.ts
 var import_promises6 = require("node:fs/promises");
+var import_node_fs = require("node:fs");
 var import_node_path5 = require("node:path");
 var import_promises7 = require("node:timers/promises");
 
@@ -28217,10 +28221,38 @@ var reporter = {
   log: info,
   failed: setFailed,
   artifact: async (path, root) => {
+    const quotaMarker = `${path}.quota-exceeded`;
+    await (0, import_promises6.rm)(quotaMarker, { force: true });
     await run(process.execPath, [(0, import_node_path5.join)(__dirname, "artifact.cjs"), path, root], {
       phase: "artifact",
       timeoutMs: 12e4
     });
+    if ((0, import_node_fs.existsSync)(quotaMarker)) {
+      if (!process.env.GITHUB_STEP_SUMMARY)
+        throw new ActionError(
+          "artifact_quota_exceeded",
+          "artifact",
+          "Artifact storage quota exhausted and no job summary is available"
+        );
+      const record = (await (0, import_promises6.readFile)(path, "utf8")).replaceAll("<", "\\u003c");
+      await (0, import_promises6.appendFile)(
+        process.env.GITHUB_STEP_SUMMARY,
+        `
+Artifact storage quota exhausted. The complete release record is preserved below.
+
+<details><summary>Full release record</summary>
+
+\`\`\`json
+${record}\`\`\`
+
+</details>
+`
+      );
+      warning(
+        "artifact_quota_exceeded: GitHub artifact storage is full; the complete release record is in the job summary. Release status is unchanged."
+      );
+      await (0, import_promises6.rm)(quotaMarker);
+    }
   }
 };
 async function runAction(report = reporter, overrides = {}) {
