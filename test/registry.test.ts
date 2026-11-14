@@ -81,3 +81,12 @@ it("kills a timed-out process", async () => {
     }),
   ).rejects.toMatchObject({ code: "process_failed" });
 });
+it("keeps the tail of a failed build's output and nothing for other phases", async () => {
+  const script = "console.log('step 1'); console.error('ERROR: pip failed'); process.exit(1)";
+  await expect(
+    run(process.execPath, ["-e", script], { phase: "build" }),
+  ).rejects.toMatchObject({ detail: expect.stringContaining("ERROR: pip failed") });
+  await expect(
+    run(process.execPath, ["-e", script], { phase: "push" }),
+  ).rejects.toMatchObject({ detail: undefined });
+});

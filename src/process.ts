@@ -42,7 +42,15 @@ export const run: Run = (command, args, options = {}) =>
       } catch {
         /* Already exited. */
       }
-      reject(new ActionError(code, phase, `Command failed during ${phase}`));
+      // Build output carries no credentials (build args are user-visible inputs);
+      // keep its tail so a failed build can be diagnosed from the workflow log.
+      const detail =
+        phase === "build"
+          ? (stdout + stderr).split("\n").slice(-80).join("\n")
+          : undefined;
+      reject(
+        new ActionError(code, phase, `Command failed during ${phase}`, detail),
+      );
     };
     const timer = setTimeout(() => fail(), options.timeoutMs ?? 1800000);
     process.once("SIGINT", cancel);

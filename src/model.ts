@@ -86,6 +86,8 @@ export class ActionError extends Error {
     public code: string,
     public phase: string,
     message: string,
+    /** Tail of a failed build's output, shown to the workflow log only. */
+    public detail?: string,
   ) {
     super(message);
   }

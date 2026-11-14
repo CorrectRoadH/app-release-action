@@ -118,6 +118,10 @@ export async function execute(
         const output = await deps.exec("docker", args, { phase: "build" });
         stats = cacheStats(`${output.stdout}\n${output.stderr}`);
       } catch (error) {
+        if (error instanceof ActionError && error.detail)
+          deps.log(
+            `::group::Build output for ${component.name} (last lines)\n${error.detail}\n::endgroup::`,
+          );
         throw failure(error, "build");
       } finally {
         record.timeline.build_finished = deps.now().toISOString();

@@ -27016,13 +27016,15 @@ function durations(t) {
   );
 }
 var ActionError = class extends Error {
-  constructor(code, phase, message) {
+  constructor(code, phase, message, detail) {
     super(message);
     this.code = code;
     this.phase = phase;
+    this.detail = detail;
   }
   code;
   phase;
+  detail;
   toJSON() {
     return { code: this.code, phase: this.phase, message: this.message };
   }
@@ -27941,6 +27943,12 @@ async function execute(inputs, record, token, directory, deps) {
         stats = cacheStats(`${output.stdout}
 ${output.stderr}`);
       } catch (error2) {
+        if (error2 instanceof ActionError && error2.detail)
+          deps.log(
+            `::group::Build output for ${component.name} (last lines)
+${error2.detail}
+::endgroup::`
+          );
         throw failure(error2, "build");
       } finally {
         record.timeline.build_finished = deps.now().toISOString();
@@ -28080,7 +28088,10 @@ var run = (command, args, options = {}) => new Promise((resolve, reject) => {
       if (child.pid) process.kill(-child.pid, "SIGKILL");
     } catch {
     }
-    reject(new ActionError(code, phase, `Command failed during ${phase}`));
+    const detail = phase === "build" ? (stdout + stderr).split("\n").slice(-80).join("\n") : void 0;
+    reject(
+      new ActionError(code, phase, `Command failed during ${phase}`, detail)
+    );
   };
   const timer = setTimeout(() => fail(), options.timeoutMs ?? 18e5);
   process.once("SIGINT", cancel);
