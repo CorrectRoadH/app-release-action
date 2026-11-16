@@ -1,5 +1,6 @@
 import { parse } from "yaml";
 import { ActionError } from "./model.js";
+import { parseBuildSecrets, type BuildSecret } from "./build-secrets.js";
 export interface Component {
   name: string;
   context: string;
@@ -8,6 +9,7 @@ export interface Component {
   buildArgs: string[];
 }
 export interface Inputs {
+  buildSecrets?: BuildSecret[];
   app: string;
   components: Component[];
   platform: string;
@@ -153,6 +155,7 @@ export function parseInputs(get: (name: string) => string): Inputs {
   )
     invalid("upstream-revision must be a full lowercase commit SHA");
   return {
+    buildSecrets: parseBuildSecrets(get("secrets")),
     app,
     components,
     platform,

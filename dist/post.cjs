@@ -19631,7 +19631,7 @@ var run = (command, args, options = {}) => new Promise((resolve, reject) => {
       if (child.pid) process.kill(-child.pid, "SIGKILL");
     } catch {
     }
-    const detail = phase === "build" ? (stdout + stderr).split("\n").slice(-80).join("\n") : void 0;
+    const detail = phase === "build" && !options.suppressFailureDetail ? (stdout + stderr).split("\n").slice(-80).join("\n") : void 0;
     reject(
       new ActionError(code, phase, `Command failed during ${phase}`, detail)
     );

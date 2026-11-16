@@ -13,6 +13,8 @@ inputs:
   platform:
     description: Single build platform registered for the application
     default: linux/arm64
+  secrets:
+    description: Optional multiline ID=VALUE BuildKit secrets; empty values are omitted. Never use build-args for credentials.
   image-prefix:
     description: GHCR repository prefix (defaults to ghcr.io/<repository owner>/<app>)
   deployer-url:

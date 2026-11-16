@@ -26936,6 +26936,9 @@ var ExitCode;
   ExitCode2[ExitCode2["Success"] = 0] = "Success";
   ExitCode2[ExitCode2["Failure"] = 1] = "Failure";
 })(ExitCode || (ExitCode = {}));
+function setSecret(secret) {
+  issueCommand("add-mask", {}, secret);
+}
 function getInput(name2, options) {
   const val = process.env[`INPUT_${name2.replace(/ /g, "_").toUpperCase()}`] || "";
   if (options && options.required && !val) {
@@ -27062,6 +27065,33 @@ ${rows.map((row) => `| ${row.map(cell).join(" | ")} |`).join("\n")}
 `;
 }
 
+// src/build-secrets.ts
+function parseBuildSecrets(input) {
+  const result = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const line of input.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const separator = line.indexOf("=");
+    const id = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1);
+    if (separator < 1 || !/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(id) || /[\0\r\n]/.test(value) || seen.has(id))
+      throw new ActionError("invalid_input", "inputs", "Invalid build secrets");
+    seen.add(id);
+    if (value) result.push({ id, value });
+  }
+  return result;
+}
+function buildSecretOptions(secrets, environment) {
+  const args = [];
+  const env = { ...environment };
+  secrets.forEach(({ id, value }, index) => {
+    const variable = `APP_RELEASE_BUILD_SECRET_${index}`;
+    env[variable] = value;
+    args.push("--secret", `id=${id},env=${variable}`);
+  });
+  return { args, env };
+}
+
 // src/inputs.ts
 var invalid = (message) => {
   throw new ActionError("invalid_input", "inputs", message);
@@ -27167,6 +27197,7 @@ function parseInputs(get) {
   if (upstreamRevision && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(upstreamRevision))
     invalid("upstream-revision must be a full lowercase commit SHA");
   return {
+    buildSecrets: parseBuildSecrets(get("secrets")),
     app,
     components,
     platform: platform2,
@@ -27989,6 +28020,8 @@ async function execute(inputs, record, token, directory, deps) {
       let stats = { cache_hit_steps: 0, cache_miss_steps: 0 };
       try {
         deps.log(`Building ${component.name}`);
+        const buildSecrets = inputs.buildSecrets ?? [];
+        const secretOptions = buildSecretOptions(buildSecrets, process.env);
         const args = [
           "buildx",
           "build",
@@ -28011,14 +28044,19 @@ async function execute(inputs, record, token, directory, deps) {
             `${k}=${v}`
           ]),
           ...component.buildArgs.flatMap((arg) => ["--build-arg", arg]),
+          ...secretOptions.args,
           ...component.target ? ["--target", component.target] : [],
           component.context
         ];
-        const output = await deps.exec("docker", args, { phase: "build" });
+        const output = await deps.exec("docker", args, {
+          phase: "build",
+          env: secretOptions.env,
+          suppressFailureDetail: buildSecrets.length > 0
+        });
         stats = cacheStats(`${output.stdout}
 ${output.stderr}`);
       } catch (error2) {
-        if (error2 instanceof ActionError && error2.detail)
+        if (error2 instanceof ActionError && error2.detail && !inputs.buildSecrets?.length)
           deps.log(
             `::group::Build output for ${component.name} (last lines)
 ${error2.detail}
@@ -28153,7 +28191,7 @@ var run = (command, args, options = {}) => new Promise((resolve, reject) => {
       if (child.pid) process.kill(-child.pid, "SIGKILL");
     } catch {
     }
-    const detail = phase === "build" ? (stdout + stderr).split("\n").slice(-80).join("\n") : void 0;
+    const detail = phase === "build" && !options.suppressFailureDetail ? (stdout + stderr).split("\n").slice(-80).join("\n") : void 0;
     reject(
       new ActionError(code, phase, `Command failed during ${phase}`, detail)
     );
@@ -28362,6 +28400,7 @@ async function runAction(report = reporter, overrides = {}) {
   };
   try {
     const inputs = parseInputs(report.input);
+    for (const secret of inputs.buildSecrets ?? []) setSecret(secret.value);
     record = initialRecord(inputs, env, deps.now());
     await execute(
       inputs,

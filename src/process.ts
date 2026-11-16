@@ -5,6 +5,7 @@ export interface ProcessResult {
   stderr: string;
 }
 export interface ProcessOptions {
+  suppressFailureDetail?: boolean;
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
   phase?: string;
@@ -42,10 +43,10 @@ export const run: Run = (command, args, options = {}) =>
       } catch {
         /* Already exited. */
       }
-      // Build output carries no credentials (build args are user-visible inputs);
-      // keep its tail so a failed build can be diagnosed from the workflow log.
+      // A Dockerfile can echo mounted secrets, so suppress its output when the
+      // build has credentials, even if the runner would also mask known values.
       const detail =
-        phase === "build"
+        phase === "build" && !options.suppressFailureDetail
           ? (stdout + stderr).split("\n").slice(-80).join("\n")
           : undefined;
       reject(

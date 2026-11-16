@@ -47,12 +47,22 @@ jobs:
 
 The permissions allow checking out source and reading commit timestamps (`contents: read`), reading run and current-job timestamps (`actions: read`), pushing the source repository's packages (`packages: write`), and requesting short-lived OIDC identities (`id-token: write`).
 
+Build-only credentials such as a Sentry sourcemap upload token are optional. Pass
+`secrets: |` with `SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}` under it.
+The Dockerfile consumes this as `RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN`;
+never copy the mounted file into a layer or pass the value as a build argument.
+The action sends values only in the buildx child environment, masks them in
+GitHub Actions, and suppresses raw failed-build output when secrets are present.
+Secrets are not stored in the release record or temporary files. Dockerfiles
+remain trusted code and must not deliberately persist or transmit credentials.
+
 ## Inputs
 
 | Input                 | Default                      | Meaning                                                                                        |
 | --------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------- |
 | `app`                 | Required                     | Registered application name, lowercase letters, digits and hyphens                             |
 | `components`          | Required                     | YAML list of components                                                                        |
+| `secrets`             | Empty                        | Multiline `ID=VALUE` BuildKit secrets for this build; empty values are skipped. Use GitHub Actions secrets, never component build arguments. |
 | `platform`            | `linux/arm64`                | Single platform matching deployment registration                                               |
 | `image-prefix`        | `ghcr.io/<repository owner>/<app>` | Repository prefix; normally use the registered value                                           |
 | `deployer-url`        | None                         | Deployer HTTP(S) origin reachable through the Tailnet; required for deployment |

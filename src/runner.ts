@@ -122,6 +122,7 @@ export async function runAction(
   };
   try {
     const inputs = parseInputs(report.input);
+    for (const secret of inputs.buildSecrets ?? []) core.setSecret(secret.value);
     record = initialRecord(inputs, env, deps.now());
     await execute(
       inputs,

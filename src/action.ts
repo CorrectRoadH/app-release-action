@@ -16,6 +16,7 @@ import { deploy, preflight } from "./client.js";
 import { installRegctl, prepareTailscale } from "./tools.js";
 import { connectTailscale, existingTailscale } from "./tailscale.js";
 import { metadata } from "./github.js";
+import { buildSecretOptions } from "./build-secrets.js";
 
 export const UPSTREAM_REVISION_LABEL =
   "io.github.correctroadh.app-release-action.upstream-revision";
@@ -117,6 +118,8 @@ export async function execute(
       let stats = { cache_hit_steps: 0, cache_miss_steps: 0 };
       try {
         deps.log(`Building ${component.name}`);
+        const buildSecrets = inputs.buildSecrets ?? [];
+        const secretOptions = buildSecretOptions(buildSecrets, process.env);
         const args = [
           "buildx",
           "build",
@@ -139,13 +142,18 @@ export async function execute(
             `${k}=${v}`,
           ]),
           ...component.buildArgs.flatMap((arg) => ["--build-arg", arg]),
+          ...secretOptions.args,
           ...(component.target ? ["--target", component.target] : []),
           component.context,
         ];
-        const output = await deps.exec("docker", args, { phase: "build" });
+        const output = await deps.exec("docker", args, {
+          phase: "build",
+          env: secretOptions.env,
+          suppressFailureDetail: buildSecrets.length > 0,
+        });
         stats = cacheStats(`${output.stdout}\n${output.stderr}`);
       } catch (error) {
-        if (error instanceof ActionError && error.detail)
+        if (error instanceof ActionError && error.detail && !inputs.buildSecrets?.length)
           deps.log(
             `::group::Build output for ${component.name} (last lines)\n${error.detail}\n::endgroup::`,
           );
