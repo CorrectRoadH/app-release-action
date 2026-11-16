@@ -8,7 +8,7 @@ This repository is prepared for local review. No stable `v1` tag is published ye
 
 ## Usage
 
-Run from the source repository's `main` branch on a fresh Linux GitHub-hosted x64 or arm64 runner with Docker Buildx. Match the build platform to the runner architecture, or configure emulation before this step. The application and all components must already be registered in the deployer.
+Run from the source repository's `main` branch on a fresh Linux GitHub-hosted x64 or arm64 runner with Docker Buildx. Match the build platform to the runner architecture, or configure emulation before this step. The application must already be registered in the deployer. Its components are derived from the application kustomization `images[]` in it-infra main; deployment registration does not list components. The deployer defaults `image_prefix` to `ghcr.io/correctroadh/<app>`; when using another prefix, configure the same prefix in the deployer registration and this action's `image-prefix` input.
 
 ```yaml
 name: Release
@@ -69,6 +69,8 @@ Each component has `name`, optional `context` (default `.`), `dockerfile` (defau
 Images use `<image-prefix>-<component>`, except a single component named `app`, which uses `<image-prefix>`. Tags are `<UTC year>.<month>.<day>-<run_number>.<run_attempt>`, without date zero padding. Existing tags are rejected; reruns get a new attempt number. GHCR tags should only be written by the authorized release workflow.
 
 Every image carries `org.opencontainers.image.revision` (the workflow repository SHA), `source`, `version`, and `created` labels. `io.github.correctroadh.app-release-action.upstream-revision` is included only when supplied; it never replaces the workflow repository revision.
+
+When `deploy=true`, after connecting to the deployer and before building or pushing any image, the action calls `POST /v1/releases/check` with the application and component names. This also applies to `network=direct`. A failed check fails the action immediately and reports the error code; `components_mismatch` includes `missing` (deployed components omitted by the workflow) and `unexpected` (workflow components absent from the kustomization). `deploy=false` skips this check. Deploy the new app-deployer endpoint before updating action consumers.
 
 ## Outputs and records
 

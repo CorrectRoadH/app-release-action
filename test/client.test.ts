@@ -1,5 +1,5 @@
 import { it, expect, vi } from "vitest";
-import { deploy, errorCodes } from "../src/client.js";
+import { deploy, preflight, errorCodes } from "../src/client.js";
 import { initialRecord } from "../src/github.js";
 import { parseInputs } from "../src/inputs.js";
 const inputs = parseInputs(
@@ -202,4 +202,51 @@ it("rejects a release from another run even when version/app match", async () =>
       () => {},
     ),
   ).rejects.toMatchObject({ code: "invalid_response" });
+});
+
+it("preflights the exact component list with a fresh authenticated POST", async () => {
+  const deps = harness([Response.json({ ok: true, components: { api: "ghcr.io/correctroadh/reader-api", web: "ghcr.io/correctroadh/reader-web" } })]);
+  await preflight("reader", ["api", "web"], "http://example", 10000, deps);
+  expect(deps.fetch.mock.calls[0][0]).toBe("http://example/v1/releases/check");
+  expect(deps.fetch.mock.calls[0][1]).toMatchObject({
+    method: "POST",
+    headers: { Authorization: "Bearer private-token-0" },
+    body: JSON.stringify({ app: "reader", components: ["api", "web"] }),
+  });
+  expect(deps.sleep).not.toHaveBeenCalled();
+});
+it("reports missing/unexpected component names without echoing server messages or tokens", async () => {
+  const deps = harness([Response.json({
+    code: "components_mismatch", phase: "request", message: "private-token-0",
+    missing: ["agent", "private-token-0", "bad\nname"], unexpected: ["worker"],
+  }, { status: 400 })]);
+  try {
+    await preflight("reader", ["api", "worker"], "http://example", 10000, deps);
+    expect.fail("preflight should reject");
+  } catch (error) {
+    expect(error).toMatchObject({ code: "components_mismatch", phase: "request" });
+    expect(String(error)).toContain('missing=["agent","[invalid]","[invalid]"]');
+    expect(String(error)).toContain('unexpected=["worker"]');
+    expect(String(error)).not.toContain("private-token-0");
+  }
+});
+it.each(errorCodes)("preflight rejects deployer error %s", async (code) => {
+  const deps = harness([Response.json({ code, phase: "authorization" }, { status: 403 })]);
+  await expect(preflight("reader", ["app"], "http://example", 10000, deps)).rejects.toMatchObject({ code });
+});
+it.each([{}, { ok: true }, { ok: false, components: {} }, { ok: true, components: { other: "image" } }])(
+  "preflight rejects malformed success response %j", async (body) => {
+    await expect(preflight("reader", ["app"], "http://example", 10000, harness([Response.json(body)])))
+      .rejects.toMatchObject({ code: "invalid_response" });
+  },
+);
+it("preflight bounds OIDC acquisition and does not send a late request", async () => {
+  const deps = harness([]);
+  let complete!: (token: string) => void;
+  const token = () => new Promise<string>((resolve) => { complete = resolve; });
+  await expect(preflight("reader", ["app"], "http://example", 10, { ...deps, token }))
+    .rejects.toMatchObject({ code: "timeout" });
+  complete("private-token");
+  await Promise.resolve();
+  expect(deps.fetch).not.toHaveBeenCalled();
 });

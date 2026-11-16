@@ -27608,6 +27608,7 @@ var errorCodes = [
   "app_not_registered",
   "identity_mismatch",
   "invalid_request",
+  "components_mismatch",
   "version_mismatch",
   "superseded",
   "image_not_found",
@@ -27620,7 +27621,7 @@ var errorCodes = [
   "degraded",
   "upstream_unavailable"
 ];
-function safeError(body) {
+function safeError(body, token = "") {
   const error2 = body;
   const code = errorCodes.find((c) => c === error2?.code) || "invalid_response";
   const phase = [
@@ -27628,6 +27629,7 @@ function safeError(body) {
     "authentication",
     "authorization",
     "validation",
+    "request",
     "identity",
     "image",
     "images",
@@ -27637,10 +27639,19 @@ function safeError(body) {
     "rollout",
     "deploy"
   ].includes(error2?.phase ?? "") ? error2.phase : "deploy";
+  const names = (value) => {
+    if (!Array.isArray(value)) return "[invalid]";
+    return JSON.stringify(
+      value.slice(0, 100).map(
+        (name2) => typeof name2 === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name2) && name2.length <= 128 && !(token && name2.includes(token)) ? name2 : "[invalid]"
+      )
+    );
+  };
+  const detail = code === "components_mismatch" ? `; missing=${names(error2?.missing)}; unexpected=${names(error2?.unexpected)}` : "";
   return new ActionError(
     code,
     phase,
-    `Deployer returned ${code} during ${phase}`
+    `Deployer returned ${code} during ${phase}${detail}`
   );
 }
 function release(body) {
@@ -27673,76 +27684,97 @@ function release(body) {
     error: r.error ? safeError(r.error).toJSON() : null
   };
 }
-async function deploy(record, origin, timeoutMs, deps, update) {
-  const deadline = deps.now() + timeoutMs;
-  const call = async (path, body) => {
-    const remaining = deadline - deps.now();
-    if (remaining <= 0)
-      throw new ActionError(
-        "timeout",
-        "deploy",
-        "Timed out waiting for release"
-      );
-    let timer;
-    try {
-      return await Promise.race([
-        (async () => {
-          const token = await deps.token();
-          if (deps.now() >= deadline)
-            throw new ActionError(
-              "timeout",
-              "deploy",
-              "Timed out waiting for release"
-            );
-          const response = await request(
-            deps.fetch,
-            `${origin}${path}`,
-            {
-              method: body === void 0 ? "GET" : "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json"
-              },
-              body: body === void 0 ? void 0 : JSON.stringify(body)
-            },
+async function callDeployer(origin, path, body, deadline, deps) {
+  const remaining = deadline - deps.now();
+  if (remaining <= 0)
+    throw new ActionError(
+      "timeout",
+      "deploy",
+      "Timed out waiting for release"
+    );
+  let expired = false;
+  let timer;
+  try {
+    return await Promise.race([
+      (async () => {
+        const token = await deps.token();
+        if (expired || deps.now() >= deadline)
+          throw new ActionError(
+            "timeout",
             "deploy",
-            Math.min(3e4, Math.max(1, deadline - deps.now()))
+            "Timed out waiting for release"
           );
-          const data = await json(response, "deploy");
-          if (!response.ok) throw safeError(data);
-          if (deps.now() >= deadline)
-            throw new ActionError(
-              "timeout",
-              "deploy",
-              "Timed out waiting for release"
-            );
-          const r2 = release(data);
-          if (r2.app !== record.app || r2.version !== record.version || r2.release_id !== `${record.app}-${record.run.id}-${record.run.attempt}` || record.release_id && r2.release_id !== record.release_id) {
-            throw new ActionError(
-              "invalid_response",
-              "deploy",
-              "Release identity does not match request"
-            );
-          }
-          update(r2);
-          return r2;
-        })(),
-        new Promise((_, reject) => {
-          timer = setTimeout(
-            () => reject(
+        const response = await request(
+          deps.fetch,
+          `${origin}${path}`,
+          {
+            method: body === void 0 ? "GET" : "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            },
+            body: body === void 0 ? void 0 : JSON.stringify(body)
+          },
+          "deploy",
+          Math.min(3e4, Math.max(1, deadline - deps.now()))
+        );
+        const data = await json(response, "deploy");
+        if (!response.ok) throw safeError(data, token);
+        if (expired || deps.now() >= deadline)
+          throw new ActionError(
+            "timeout",
+            "deploy",
+            "Timed out waiting for release"
+          );
+        return data;
+      })(),
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => {
+            expired = true;
+            reject(
               new ActionError(
                 "timeout",
                 "deploy",
                 "Timed out waiting for release"
               )
-            ),
-            remaining
-          );
-        })
-      ]);
-    } finally {
-      clearTimeout(timer);
+            );
+          },
+          remaining
+        );
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function preflight(app, components, origin, timeoutMs, deps) {
+  const data = await callDeployer(
+    origin,
+    "/v1/releases/check",
+    { app, components },
+    deps.now() + timeoutMs,
+    deps
+  );
+  const result = data;
+  if (result?.ok !== true || !result.components || typeof result.components !== "object" || Array.isArray(result.components) || Object.keys(result.components).length !== components.length || components.some((name2) => typeof result.components?.[name2] !== "string")) {
+    throw new ActionError("invalid_response", "deploy", "Invalid preflight response");
+  }
+}
+async function deploy(record, origin, timeoutMs, deps, update) {
+  const deadline = deps.now() + timeoutMs;
+  const call = async (path, body) => {
+    const data = await callDeployer(origin, path, body, deadline, deps);
+    const r2 = release(data);
+    if (r2.app !== record.app || r2.version !== record.version || r2.release_id !== `${record.app}-${record.run.id}-${record.run.attempt}` || record.release_id && r2.release_id !== record.release_id) {
+      throw new ActionError(
+        "invalid_response",
+        "deploy",
+        "Release identity does not match request"
+      );
     }
+    update(r2);
+    return r2;
   };
   let r = await call("/v1/releases", {
     app: record.app,
@@ -27886,6 +27918,32 @@ async function execute(inputs, record, token, directory, deps) {
     );
   if (!token)
     throw new ActionError("missing_token", "setup", "github-token is required");
+  if (inputs.deploy) {
+    if (inputs.network === "tailscale") {
+      const tailscaleDir = (0, import_node_path3.join)(directory, "tailscale");
+      await (0, import_promises4.mkdir)(tailscaleDir, { recursive: true });
+      await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
+      deps.state("tailscale", tailscaleDir);
+      await connectTailscale(
+        tailscaleDir,
+        inputs,
+        deps.exec,
+        deps.existingTailscale
+      );
+    }
+    await preflight(
+      inputs.app,
+      inputs.components.map((component) => component.name),
+      inputs.deployerUrl,
+      inputs.timeoutMs,
+      {
+        fetch: deps.fetch,
+        token: () => oidc("app-deployer", deps.fetch),
+        now: () => deps.now().getTime(),
+        sleep: deps.sleep
+      }
+    );
+  }
   const tools = (0, import_node_path3.join)(directory, "tools");
   const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
   try {
@@ -28048,18 +28106,6 @@ ${error2.detail}
   if (!inputs.deploy) {
     record.result.status = "built";
     return;
-  }
-  if (inputs.network === "tailscale") {
-    const tailscaleDir = (0, import_node_path3.join)(directory, "tailscale");
-    await (0, import_promises4.mkdir)(tailscaleDir, { recursive: true });
-    await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
-    deps.state("tailscale", tailscaleDir);
-    await connectTailscale(
-      tailscaleDir,
-      inputs,
-      deps.exec,
-      deps.existingTailscale
-    );
   }
   await deploy(
     record,

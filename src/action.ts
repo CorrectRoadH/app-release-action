@@ -12,7 +12,7 @@ import { type Run } from "./process.js";
 import { type Fetch, oidc } from "./http.js";
 import { readManifest, cacheStats, classifyLayers } from "./oci.js";
 import { Registry } from "./registry.js";
-import { deploy } from "./client.js";
+import { deploy, preflight } from "./client.js";
 import { installRegctl, prepareTailscale } from "./tools.js";
 import { connectTailscale, existingTailscale } from "./tailscale.js";
 import { metadata } from "./github.js";
@@ -45,6 +45,33 @@ export async function execute(
     );
   if (!token)
     throw new ActionError("missing_token", "setup", "github-token is required");
+  if (inputs.deploy) {
+    // direct: the runner already reaches the deployer (e.g. an in-cluster runner).
+    if (inputs.network === "tailscale") {
+      const tailscaleDir = join(directory, "tailscale");
+      await mkdir(tailscaleDir, { recursive: true });
+      await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
+      deps.state("tailscale", tailscaleDir);
+      await connectTailscale(
+        tailscaleDir,
+        inputs,
+        deps.exec,
+        deps.existingTailscale,
+      );
+    }
+    await preflight(
+      inputs.app,
+      inputs.components.map((component) => component.name),
+      inputs.deployerUrl,
+      inputs.timeoutMs,
+      {
+        fetch: deps.fetch,
+        token: () => oidc("app-deployer", deps.fetch),
+        now: () => deps.now().getTime(),
+        sleep: deps.sleep,
+      },
+    );
+  }
   const tools = join(directory, "tools");
   const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
   try {
@@ -212,19 +239,6 @@ export async function execute(
   if (!inputs.deploy) {
     record.result.status = "built";
     return;
-  }
-  // direct: the runner already reaches the deployer (e.g. an in-cluster runner).
-  if (inputs.network === "tailscale") {
-    const tailscaleDir = join(directory, "tailscale");
-    await mkdir(tailscaleDir, { recursive: true });
-    await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
-    deps.state("tailscale", tailscaleDir);
-    await connectTailscale(
-      tailscaleDir,
-      inputs,
-      deps.exec,
-      deps.existingTailscale,
-    );
   }
   await deploy(
     record,

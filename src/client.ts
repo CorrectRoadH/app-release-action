@@ -21,6 +21,7 @@ export const errorCodes = [
   "app_not_registered",
   "identity_mismatch",
   "invalid_request",
+  "components_mismatch",
   "version_mismatch",
   "superseded",
   "image_not_found",
@@ -48,8 +49,11 @@ export interface ClientDependencies {
   now: () => number;
   sleep: (ms: number) => Promise<void>;
 }
-function safeError(body: unknown): ActionError {
-  const error = body as Partial<ReleaseError> | null;
+function safeError(body: unknown, token = ""): ActionError {
+  const error = body as (Partial<ReleaseError> & {
+    missing?: unknown;
+    unexpected?: unknown;
+  }) | null;
   const code = errorCodes.find((c) => c === error?.code) || "invalid_response";
   // The server's free-form message is untrusted and may echo an Authorization header.
   const phase = [
@@ -57,6 +61,7 @@ function safeError(body: unknown): ActionError {
     "authentication",
     "authorization",
     "validation",
+    "request",
     "identity",
     "image",
     "images",
@@ -68,10 +73,22 @@ function safeError(body: unknown): ActionError {
   ].includes(error?.phase ?? "")
     ? error!.phase!
     : "deploy";
+  const names = (value: unknown): string => {
+    if (!Array.isArray(value)) return "[invalid]";
+    return JSON.stringify(
+      value.slice(0, 100).map((name: unknown) =>
+        typeof name === "string" &&
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) &&
+        name.length <= 128 && !(token && name.includes(token))
+          ? name : "[invalid]",
+      ),
+    );
+  };
+  const detail = code === "components_mismatch"
+    ? `; missing=${names(error?.missing)}; unexpected=${names(error?.unexpected)}`
+    : "";
   return new ActionError(
-    code,
-    phase,
-    `Deployer returned ${code} during ${phase}`,
+    code, phase, `Deployer returned ${code} during ${phase}${detail}`,
   );
 }
 function release(body: unknown): Release {
@@ -116,6 +133,102 @@ function release(body: unknown): Release {
     error: r.error ? safeError(r.error).toJSON() : null,
   };
 }
+async function callDeployer(
+  origin: string,
+  path: string,
+  body: unknown,
+  deadline: number,
+  deps: ClientDependencies,
+): Promise<unknown> {
+  const remaining = deadline - deps.now();
+  if (remaining <= 0)
+    throw new ActionError(
+      "timeout",
+      "deploy",
+      "Timed out waiting for release",
+    );
+  // Include token acquisition in the deadline, even if the identity provider hangs.
+  let expired = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        const token = await deps.token();
+        if (expired || deps.now() >= deadline)
+          throw new ActionError(
+            "timeout",
+            "deploy",
+            "Timed out waiting for release",
+          );
+        const response = await request(
+          deps.fetch,
+          `${origin}${path}`,
+          {
+            method: body === undefined ? "GET" : "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: body === undefined ? undefined : JSON.stringify(body),
+          },
+          "deploy",
+          Math.min(30000, Math.max(1, deadline - deps.now())),
+        );
+        const data = await json(response, "deploy");
+        if (!response.ok) throw safeError(data, token);
+        if (expired || deps.now() >= deadline)
+          throw new ActionError(
+            "timeout",
+            "deploy",
+            "Timed out waiting for release",
+          );
+        return data;
+      })(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => {
+            expired = true;
+            reject(
+              new ActionError(
+                "timeout",
+                "deploy",
+                "Timed out waiting for release",
+              ),
+            );
+          },
+          remaining,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function preflight(
+  app: string,
+  components: string[],
+  origin: string,
+  timeoutMs: number,
+  deps: ClientDependencies,
+): Promise<void> {
+  const data = await callDeployer(
+    origin, "/v1/releases/check", { app, components }, deps.now() + timeoutMs, deps,
+  );
+  const result = data as {
+    ok?: unknown;
+    components?: Record<string, unknown>;
+  } | null;
+  if (
+    result?.ok !== true || !result.components ||
+    typeof result.components !== "object" || Array.isArray(result.components) ||
+    Object.keys(result.components).length !== components.length ||
+    components.some((name) => typeof result.components?.[name] !== "string")
+  ) {
+    throw new ActionError("invalid_response", "deploy", "Invalid preflight response");
+  }
+}
+
 export async function deploy(
   record: ReleaseRecord,
   origin: string,
@@ -125,81 +238,23 @@ export async function deploy(
 ): Promise<Release> {
   const deadline = deps.now() + timeoutMs;
   const call = async (path: string, body?: unknown): Promise<Release> => {
-    const remaining = deadline - deps.now();
-    if (remaining <= 0)
+    const data = await callDeployer(origin, path, body, deadline, deps);
+    const r = release(data);
+    if (
+      r.app !== record.app ||
+      r.version !== record.version ||
+      r.release_id !==
+        `${record.app}-${record.run.id}-${record.run.attempt}` ||
+      (record.release_id && r.release_id !== record.release_id)
+    ) {
       throw new ActionError(
-        "timeout",
+        "invalid_response",
         "deploy",
-        "Timed out waiting for release",
+        "Release identity does not match request",
       );
-    // Include token acquisition in the deadline, even if the identity provider hangs.
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        (async () => {
-          const token = await deps.token();
-          if (deps.now() >= deadline)
-            throw new ActionError(
-              "timeout",
-              "deploy",
-              "Timed out waiting for release",
-            );
-          const response = await request(
-            deps.fetch,
-            `${origin}${path}`,
-            {
-              method: body === undefined ? "GET" : "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: body === undefined ? undefined : JSON.stringify(body),
-            },
-            "deploy",
-            Math.min(30000, Math.max(1, deadline - deps.now())),
-          );
-          const data = await json(response, "deploy");
-          if (!response.ok) throw safeError(data);
-          if (deps.now() >= deadline)
-            throw new ActionError(
-              "timeout",
-              "deploy",
-              "Timed out waiting for release",
-            );
-          const r = release(data);
-          if (
-            r.app !== record.app ||
-            r.version !== record.version ||
-            r.release_id !==
-              `${record.app}-${record.run.id}-${record.run.attempt}` ||
-            (record.release_id && r.release_id !== record.release_id)
-          ) {
-            throw new ActionError(
-              "invalid_response",
-              "deploy",
-              "Release identity does not match request",
-            );
-          }
-          update(r);
-          return r;
-        })(),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(
-            () =>
-              reject(
-                new ActionError(
-                  "timeout",
-                  "deploy",
-                  "Timed out waiting for release",
-                ),
-              ),
-            remaining,
-          );
-        }),
-      ]);
-    } finally {
-      clearTimeout(timer);
     }
+    update(r);
+    return r;
   };
   let r = await call("/v1/releases", {
     app: record.app,
