@@ -8,8 +8,12 @@ inputs:
     description: Registered application name
     required: true
   components:
-    description: YAML component list (name, context, dockerfile, target, build-args)
+    description: Complete YAML component list (name, context, dockerfile, target, build-args)
     required: true
+  incremental-base:
+    description: Optional full lowercase GitHub commit SHA used to compute changed-components
+  changed-components:
+    description: Optional JSON array of changed names from the complete components list
   platform:
     description: Single build platform registered for the application
     default: linux/arm64
@@ -47,7 +51,7 @@ outputs:
   infra-commit:
     description: Infrastructure write-back commit SHA
   digests:
-    description: JSON object mapping component names to pushed digests
+    description: JSON object mapping newly built and pushed component names to their digests
   record:
     description: Path to app-release/v1 JSON record
 runs:

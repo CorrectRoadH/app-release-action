@@ -12,7 +12,7 @@ import { type Run } from "./process.js";
 import { type Fetch, oidc } from "./http.js";
 import { readManifest, cacheStats, classifyLayers } from "./oci.js";
 import { Registry } from "./registry.js";
-import { deploy, preflight } from "./client.js";
+import { deploy, preflight, type IncrementalRelease } from "./client.js";
 import { installRegctl, prepareTailscale } from "./tools.js";
 import { connectTailscale, existingTailscale } from "./tailscale.js";
 import { metadata } from "./github.js";
@@ -46,6 +46,8 @@ export async function execute(
     );
   if (!token)
     throw new ActionError("missing_token", "setup", "github-token is required");
+  let buildComponents = inputs.components;
+  let incremental: IncrementalRelease | undefined;
   if (inputs.deploy) {
     // direct: the runner already reaches the deployer (e.g. an in-cluster runner).
     if (inputs.network === "tailscale") {
@@ -60,9 +62,10 @@ export async function execute(
         deps.existingTailscale,
       );
     }
-    await preflight(
+    const componentNames = inputs.components.map((component) => component.name);
+    const baseline = await preflight(
       inputs.app,
-      inputs.components.map((component) => component.name),
+      componentNames,
       inputs.deployerUrl,
       inputs.timeoutMs,
       {
@@ -72,6 +75,21 @@ export async function execute(
         sleep: deps.sleep,
       },
     );
+    if (
+      baseline &&
+      baseline.revision === inputs.incrementalBase &&
+      inputs.changedComponents?.length
+    ) {
+      const changed = new Set(inputs.changedComponents);
+      const updated = inputs.components.filter((component) =>
+        changed.has(component.name),
+      );
+      const retain = componentNames.filter((name) => !changed.has(name));
+      if (updated.length === inputs.changedComponents.length && retain.length > 0) {
+        buildComponents = updated;
+        incremental = { ...baseline, retain };
+      }
+    }
   }
   const tools = join(directory, "tools");
   const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
@@ -92,7 +110,7 @@ export async function execute(
       "--host",
       `reg=ghcr.io,user=${record.source.actor},pass=${token}`,
     ];
-    for (const component of inputs.components) {
+    for (const component of buildComponents) {
       const image = imageName(
         inputs.imagePrefix,
         component.name,
@@ -267,5 +285,6 @@ export async function execute(
         error: r.error,
       };
     },
+    incremental,
   );
 }

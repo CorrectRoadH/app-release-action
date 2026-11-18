@@ -89,7 +89,7 @@ it.each(errorCodes)(
     const deps = harness([
       Response.json(
         { code, phase: "write_back", message: "private-token-0" },
-        { status: code === "superseded" ? 409 : 503 },
+        { status: ["superseded", "base_changed"].includes(code) ? 409 : 503 },
       ),
     ]);
     await expect(
@@ -110,7 +110,7 @@ it.each(errorCodes)(
     }
   },
 );
-it.each(["sync_timeout", "degraded", "write_conflict", "upstream_unavailable"])(
+it.each(["sync_timeout", "degraded", "write_conflict", "upstream_unavailable", "base_changed"])(
   "handles terminal error %s",
   async (code) => {
     const body = {
@@ -206,7 +206,7 @@ it("rejects a release from another run even when version/app match", async () =>
 
 it("preflights the exact component list with a fresh authenticated POST", async () => {
   const deps = harness([Response.json({ ok: true, components: { api: "ghcr.io/correctroadh/reader-api", web: "ghcr.io/correctroadh/reader-web" } })]);
-  await preflight("reader", ["api", "web"], "http://example", 10000, deps);
+  await expect(preflight("reader", ["api", "web"], "http://example", 10000, deps)).resolves.toBeUndefined();
   expect(deps.fetch.mock.calls[0][0]).toBe("http://example/v1/releases/check");
   expect(deps.fetch.mock.calls[0][1]).toMatchObject({
     method: "POST",
@@ -214,6 +214,14 @@ it("preflights the exact component list with a fresh authenticated POST", async 
     body: JSON.stringify({ app: "reader", components: ["api", "web"] }),
   });
   expect(deps.sleep).not.toHaveBeenCalled();
+});
+it.each([
+  { revision: "short", state: "f".repeat(64) },
+  { revision: "b".repeat(40), state: "F".repeat(64) },
+  { revision: "b".repeat(40) },
+])("ignores a malformed optional baseline %j", async (baseline) => {
+  const deps = harness([Response.json({ ok: true, components: { app: "image" }, baseline })]);
+  await expect(preflight("reader", ["app"], "http://example", 10000, deps)).resolves.toBeUndefined();
 });
 it("reports missing/unexpected component names without echoing server messages or tokens", async () => {
   const deps = harness([Response.json({

@@ -7,6 +7,8 @@ import { parseInputs } from "../src/inputs.js";
 import { initialRecord } from "../src/github.js";
 import { ActionError } from "../src/model.js";
 
+const baseline = { revision: "b".repeat(40), state: "c".repeat(64) };
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -26,6 +28,7 @@ it.each(["direct", "tailscale"] as const)(
           "image-prefix": "ghcr.io/correctroadh/reader",
           "deployer-url": "http://deployer.example",
           "tailscale-client-id": "client", "tailscale-audience": "audience",
+          "incremental-base": baseline.revision, "changed-components": '["web"]',
         })[key] || "");
         const record = initialRecord(inputs, {
           GITHUB_RUN_ID: "123", GITHUB_RUN_NUMBER: "42", GITHUB_RUN_ATTEMPT: "1",
@@ -47,7 +50,7 @@ it.each(["direct", "tailscale"] as const)(
             expect(String(url)).toBe("http://deployer.example/v1/releases/check");
             expect(JSON.parse(String(init?.body))).toEqual({ app: "reader", components: ["api", "web"] });
             return accepted
-              ? Response.json({ ok: true, components: { api: "ghcr.io/correctroadh/reader-api", web: "ghcr.io/correctroadh/reader-web" } })
+              ? Response.json({ ok: true, components: { api: "ghcr.io/correctroadh/reader-api", web: "ghcr.io/correctroadh/reader-web" }, baseline })
               : Response.json({ code: "components_mismatch", phase: "request", missing: ["agent"], unexpected: [] }, { status: 400 });
           }),
           now: () => new Date("2026-01-01T00:00:00Z"),

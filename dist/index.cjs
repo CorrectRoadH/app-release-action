@@ -26988,6 +26988,7 @@ var import_promises7 = require("node:timers/promises");
 var import_yaml = __toESM(require_dist(), 1);
 
 // src/model.ts
+var commitShaPattern = /^[a-f0-9]{40}$/;
 var timelineKeys = [
   "committed",
   "run_created",
@@ -27103,6 +27104,21 @@ function string(value, label, fallback) {
     return invalid(`Invalid ${label}`);
   return value.trim();
 }
+function parseChangedComponents(raw, components) {
+  if (!raw) return void 0;
+  let list;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return invalid("changed-components must be a JSON array of component names");
+  }
+  if (!Array.isArray(list) || list.some((name2) => typeof name2 !== "string"))
+    return invalid("changed-components must be a JSON array of component names");
+  const names = list;
+  if (new Set(names).size !== names.length || names.some((name2) => !components.has(name2)))
+    return invalid("changed-components must contain unique names from components");
+  return names;
+}
 function parseInputs(get) {
   const app = string(get("app"), "app");
   if (!name.test(app))
@@ -27196,6 +27212,9 @@ function parseInputs(get) {
   const upstreamRevision = get("upstream-revision") || void 0;
   if (upstreamRevision && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(upstreamRevision))
     invalid("upstream-revision must be a full lowercase commit SHA");
+  const incrementalBase = get("incremental-base") || void 0;
+  if (incrementalBase && !commitShaPattern.test(incrementalBase))
+    invalid("incremental-base must be a full lowercase GitHub commit SHA");
   return {
     buildSecrets: parseBuildSecrets(get("secrets")),
     app,
@@ -27207,6 +27226,8 @@ function parseInputs(get) {
     tailscaleAudience,
     network,
     upstreamRevision,
+    incrementalBase,
+    changedComponents: parseChangedComponents(get("changed-components"), seen),
     deploy: deploy2 === "true",
     timeoutMs
   };
@@ -27642,6 +27663,7 @@ var errorCodes = [
   "components_mismatch",
   "version_mismatch",
   "superseded",
+  "base_changed",
   "image_not_found",
   "platform_mismatch",
   "revision_mismatch",
@@ -27791,8 +27813,10 @@ async function preflight(app, components, origin, timeoutMs, deps) {
   if (result?.ok !== true || !result.components || typeof result.components !== "object" || Array.isArray(result.components) || Object.keys(result.components).length !== components.length || components.some((name2) => typeof result.components?.[name2] !== "string")) {
     throw new ActionError("invalid_response", "deploy", "Invalid preflight response");
   }
+  const { revision, state } = result.baseline ?? {};
+  if (typeof revision === "string" && commitShaPattern.test(revision) && typeof state === "string" && /^[a-f0-9]{64}$/.test(state)) return { revision, state };
 }
-async function deploy(record, origin, timeoutMs, deps, update) {
+async function deploy(record, origin, timeoutMs, deps, update, incremental) {
   const deadline = deps.now() + timeoutMs;
   const call = async (path, body) => {
     const data = await callDeployer(origin, path, body, deadline, deps);
@@ -27816,6 +27840,7 @@ async function deploy(record, origin, timeoutMs, deps, update) {
         { image: c.image, digest: c.digest }
       ])
     ),
+    incremental,
     build: {
       source: record.source,
       run: record.run,
@@ -27949,6 +27974,8 @@ async function execute(inputs, record, token, directory, deps) {
     );
   if (!token)
     throw new ActionError("missing_token", "setup", "github-token is required");
+  let buildComponents = inputs.components;
+  let incremental;
   if (inputs.deploy) {
     if (inputs.network === "tailscale") {
       const tailscaleDir = (0, import_node_path3.join)(directory, "tailscale");
@@ -27962,9 +27989,10 @@ async function execute(inputs, record, token, directory, deps) {
         deps.existingTailscale
       );
     }
-    await preflight(
+    const componentNames = inputs.components.map((component) => component.name);
+    const baseline = await preflight(
       inputs.app,
-      inputs.components.map((component) => component.name),
+      componentNames,
       inputs.deployerUrl,
       inputs.timeoutMs,
       {
@@ -27974,6 +28002,17 @@ async function execute(inputs, record, token, directory, deps) {
         sleep: deps.sleep
       }
     );
+    if (baseline && baseline.revision === inputs.incrementalBase && inputs.changedComponents?.length) {
+      const changed = new Set(inputs.changedComponents);
+      const updated = inputs.components.filter(
+        (component) => changed.has(component.name)
+      );
+      const retain = componentNames.filter((name2) => !changed.has(name2));
+      if (updated.length === inputs.changedComponents.length && retain.length > 0) {
+        buildComponents = updated;
+        incremental = { ...baseline, retain };
+      }
+    }
   }
   const tools = (0, import_node_path3.join)(directory, "tools");
   const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
@@ -27994,7 +28033,7 @@ async function execute(inputs, record, token, directory, deps) {
       "--host",
       `reg=ghcr.io,user=${record.source.actor},pass=${token}`
     ];
-    for (const component of inputs.components) {
+    for (const component of buildComponents) {
       const image = imageName(
         inputs.imagePrefix,
         component.name,
@@ -28163,7 +28202,8 @@ ${error2.detail}
         infra_commit: r.infra_commit,
         error: r.error
       };
-    }
+    },
+    incremental
   );
 }
 

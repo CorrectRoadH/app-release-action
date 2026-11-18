@@ -66,6 +66,21 @@ describe("inputs and version", () => {
     expect(i.timeoutMs).toBe(30000);
     expect(i.deploy).toBe(true);
   });
+  it("keeps the complete component list when incremental inputs are present", () => {
+    const base = "a".repeat(40);
+    const i = parse({
+      components: "- name: api\n- name: web",
+      "incremental-base": base,
+      "changed-components": '["web"]',
+    });
+    expect(i.incrementalBase).toBe(base);
+    expect(i.changedComponents).toEqual(["web"]);
+    expect(i.components.map((c) => c.name)).toEqual(["api", "web"]);
+  });
+  it.each(["app", '"app"', '{}', '[null]', '[1]', '["app","app"]', '["unknown"]'])(
+    "rejects invalid changed-components %s",
+    (value) => expect(() => parse({ "changed-components": value })).toThrow(/changed-components/),
+  );
   it.each([
     { app: "Reader" },
     { components: "[]" },
@@ -86,6 +101,8 @@ describe("inputs and version", () => {
     { timeout: "no" },
     { "deployer-url": "http://user:pass@localhost" },
     { "upstream-revision": "short" },
+    { "incremental-base": "short" },
+    { "incremental-base": "A".repeat(40) },
   ])("rejects invalid input %j", (values) =>
     expect(() => parse(values)).toThrow(),
   );

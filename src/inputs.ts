@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import { ActionError } from "./model.js";
+import { ActionError, commitShaPattern } from "./model.js";
 import { parseBuildSecrets, type BuildSecret } from "./build-secrets.js";
 export interface Component {
   name: string;
@@ -19,6 +19,8 @@ export interface Inputs {
   tailscaleAudience: string;
   network: "tailscale" | "direct";
   upstreamRevision?: string;
+  incrementalBase?: string;
+  changedComponents?: string[];
   deploy: boolean;
   timeoutMs: number;
 }
@@ -31,6 +33,30 @@ function string(value: unknown, label: string, fallback?: string): string {
   if (typeof value !== "string" || !value.trim() || /[\0\r\n]/.test(value))
     return invalid(`Invalid ${label}`);
   return value.trim();
+}
+function parseChangedComponents(
+  raw: string,
+  components: Set<string>,
+): string[] | undefined {
+  if (!raw) return undefined;
+  let list: unknown;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return invalid("changed-components must be a JSON array of component names");
+  }
+  if (
+    !Array.isArray(list) ||
+    list.some((name: unknown) => typeof name !== "string")
+  )
+    return invalid("changed-components must be a JSON array of component names");
+  const names = list as string[];
+  if (
+    new Set(names).size !== names.length ||
+    names.some((name) => !components.has(name))
+  )
+    return invalid("changed-components must contain unique names from components");
+  return names;
 }
 export function parseInputs(get: (name: string) => string): Inputs {
   const app = string(get("app"), "app");
@@ -154,6 +180,9 @@ export function parseInputs(get: (name: string) => string): Inputs {
     !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(upstreamRevision)
   )
     invalid("upstream-revision must be a full lowercase commit SHA");
+  const incrementalBase = get("incremental-base") || undefined;
+  if (incrementalBase && !commitShaPattern.test(incrementalBase))
+    invalid("incremental-base must be a full lowercase GitHub commit SHA");
   return {
     buildSecrets: parseBuildSecrets(get("secrets")),
     app,
@@ -165,6 +194,8 @@ export function parseInputs(get: (name: string) => string): Inputs {
     tailscaleAudience,
     network,
     upstreamRevision,
+    incrementalBase,
+    changedComponents: parseChangedComponents(get("changed-components"), seen),
     deploy: deploy === "true",
     timeoutMs,
   };

@@ -1,5 +1,6 @@
 import {
   ActionError,
+  commitShaPattern,
   type ReleaseError,
   type ReleaseRecord,
   type Timeline,
@@ -24,6 +25,7 @@ export const errorCodes = [
   "components_mismatch",
   "version_mismatch",
   "superseded",
+  "base_changed",
   "image_not_found",
   "platform_mismatch",
   "revision_mismatch",
@@ -42,6 +44,13 @@ export interface Release {
   infra_commit: string;
   timeline: Timeline;
   error: ReleaseError | null;
+}
+interface Baseline {
+  revision: string;
+  state: string;
+}
+export interface IncrementalRelease extends Baseline {
+  retain: string[];
 }
 export interface ClientDependencies {
   fetch: Fetch;
@@ -211,13 +220,14 @@ export async function preflight(
   origin: string,
   timeoutMs: number,
   deps: ClientDependencies,
-): Promise<void> {
+): Promise<Baseline | undefined> {
   const data = await callDeployer(
     origin, "/v1/releases/check", { app, components }, deps.now() + timeoutMs, deps,
   );
   const result = data as {
     ok?: unknown;
     components?: Record<string, unknown>;
+    baseline?: { revision?: unknown; state?: unknown } | null;
   } | null;
   if (
     result?.ok !== true || !result.components ||
@@ -227,6 +237,11 @@ export async function preflight(
   ) {
     throw new ActionError("invalid_response", "deploy", "Invalid preflight response");
   }
+  const { revision, state } = result.baseline ?? {};
+  if (
+    typeof revision === "string" && commitShaPattern.test(revision) &&
+    typeof state === "string" && /^[a-f0-9]{64}$/.test(state)
+  ) return { revision, state };
 }
 
 export async function deploy(
@@ -235,6 +250,7 @@ export async function deploy(
   timeoutMs: number,
   deps: ClientDependencies,
   update: (r: Release) => void,
+  incremental?: IncrementalRelease,
 ): Promise<Release> {
   const deadline = deps.now() + timeoutMs;
   const call = async (path: string, body?: unknown): Promise<Release> => {
@@ -265,6 +281,7 @@ export async function deploy(
         { image: c.image, digest: c.digest },
       ]),
     ),
+    incremental,
     build: {
       source: record.source,
       run: record.run,

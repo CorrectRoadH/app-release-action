@@ -3,6 +3,7 @@ export interface ReleaseError {
   message: string;
   phase: string;
 }
+export const commitShaPattern = /^[a-f0-9]{40}$/;
 export type Timeline = Record<string, string | null>;
 export interface ComponentRecord {
   name: string;

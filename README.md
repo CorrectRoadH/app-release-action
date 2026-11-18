@@ -61,7 +61,9 @@ remain trusted code and must not deliberately persist or transmit credentials.
 | Input                 | Default                      | Meaning                                                                                        |
 | --------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------- |
 | `app`                 | Required                     | Registered application name, lowercase letters, digits and hyphens                             |
-| `components`          | Required                     | YAML list of components                                                                        |
+| `components`          | Required                     | Complete YAML list of the application's components                                              |
+| `incremental-base`    | None                         | Full lowercase GitHub commit SHA used as the base for the caller's change calculation          |
+| `changed-components`  | None                         | JSON array of unique names from `components` that need rebuilding, e.g. `["web"]`              |
 | `secrets`             | Empty                        | Multiline `ID=VALUE` BuildKit secrets for this build; empty values are skipped. Use GitHub Actions secrets, never component build arguments. |
 | `platform`            | `linux/arm64`                | Single platform matching deployment registration                                               |
 | `image-prefix`        | `ghcr.io/<repository owner>/<app>` | Repository prefix; normally use the registered value                                           |
@@ -82,6 +84,10 @@ Every image carries `org.opencontainers.image.revision` (the workflow repository
 
 When `deploy=true`, after connecting to the deployer and before building or pushing any image, the action calls `POST /v1/releases/check` with the application and component names. This also applies to `network=direct`. A failed check fails the action immediately and reports the error code; `components_mismatch` includes `missing` (deployed components omitted by the workflow) and `unexpected` (workflow components absent from the kustomization). `deploy=false` skips this check. Deploy the new app-deployer endpoint before updating action consumers.
 
+For incremental deployment, pass both `incremental-base` and `changed-components` alongside the complete `components` list. When preflight returns a valid baseline for that commit, the action builds and pushes the requested subset. The release request names the remaining components in `incremental.retain`, so the deployer retains their pinned images and can reject a stale baseline with `base_changed`.
+
+The action builds every component when either optional input is omitted, the deployer has no valid matching baseline, `deploy=false`, or `changed-components` is empty or lists every component. Workflows that determine there is nothing to release should skip invoking the action. Invalid SHAs, malformed JSON, duplicate names, and unknown names fail input validation.
+
 ## Outputs and records
 
 | Output         | Meaning                                                                   |
@@ -90,10 +96,12 @@ When `deploy=true`, after connecting to the deployer and before building or push
 | `release-id`   | Release identifier; empty when `deploy=false`                             |
 | `status`       | `healthy`, `noop`, `superseded`, `failed`, or `built` for build-only runs |
 | `infra-commit` | Deployer write-back commit, or empty before write-back                    |
-| `digests`      | JSON object mapping component names to pushed SHA-256 digests             |
+| `digests`      | JSON object mapping newly built and pushed components to SHA-256 digests  |
 | `record`       | `$RUNNER_TEMP/app-release/record.json`                                    |
 
 `healthy` and `noop` succeed. `built` succeeds when `deploy=false`. Superseded releases, failures, API errors, and timeouts fail the step. Failure records contain the error code and phase. Unreached timestamps and durations are `null`.
+
+The release record lists only component builds from this run.
 
 The action uploads `app-release-record` (14-day retention) and adds version, final status, infrastructure commit, stage durations, pushed bytes, reused layers, and failure details to `$GITHUB_STEP_SUMMARY`, including on failure. If GitHub explicitly reports exhausted artifact storage quota, the action warns and preserves the complete `app-release/v1` JSON in the job summary without changing the release result. Other upload errors, or inability to write that fallback summary, fail the action. Download the artifact or expand the full record in the workflow summary to inspect component details.
 
