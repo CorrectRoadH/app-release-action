@@ -88,18 +88,44 @@ For incremental deployment, pass both `incremental-base` and `changed-components
 
 The action builds every component when either optional input is omitted, the deployer has no valid matching baseline, `deploy=false`, or `changed-components` is empty or lists every component. Workflows that determine there is nothing to release should skip invoking the action. Invalid SHAs, malformed JSON, duplicate names, and unknown names fail input validation.
 
+## Parallel builds
+
+The default `stage: release` runs the complete workflow in one job. For a release
+with independent component builds, pass the same complete component configuration
+to each stage and chain the following jobs in the same workflow run.
+
+1. `stage: plan` uses the release connection settings to run deployment preflight.
+   It sets one version for the attempt and outputs `plan` plus `build-components`
+   (a JSON array of names). Pass the incremental inputs here to use a matching
+   deployment baseline. Use `fromJSON` on `build-components` for the build matrix.
+2. `stage: build` accepts `plan` and one `build-component` name. It builds and pushes
+   that component with the planned version, using its own BuildKit cache scope.
+   Give this job GHCR write permission and any build secrets it needs. It skips
+   the release connection and emits `build-result`. Use a distinct workflow job
+   output for each matrix component to carry its JSON result forward.
+3. `stage: finalize` accepts `plan` and a `build-results` JSON array containing
+   every planned build result. Run it only after the entire matrix succeeds.
+   It validates the release attempt, component coverage, and image metadata,
+   then submits one request and waits for the terminal state using the release
+   connection settings. It produces the normal release outputs and artifact.
+
+The plan and build results are job outputs. Only the final stage uploads
+`app-release-record`. The plan's UTC date is shared across jobs even if a build
+crosses midnight. If a release attempt fails, use **Re-run all jobs** to generate
+a new plan and immutable image tags for the new attempt.
+
 ## Outputs and records
 
 | Output         | Meaning                                                                   |
 | -------------- | ------------------------------------------------------------------------- |
 | `version`      | Generated version tag                                                     |
 | `release-id`   | Release identifier; empty when `deploy=false`                             |
-| `status`       | `healthy`, `noop`, `superseded`, `failed`, or `built` for build-only runs |
+| `status`       | `healthy`, `noop`, `superseded`, `failed`, `built`, or `planned` |
 | `infra-commit` | Deployer write-back commit, or empty before write-back                    |
 | `digests`      | JSON object mapping newly built and pushed components to SHA-256 digests  |
 | `record`       | `$RUNNER_TEMP/app-release/record.json`                                    |
 
-`healthy` and `noop` succeed. `built` succeeds when `deploy=false`. Superseded releases, failures, API errors, and timeouts fail the step. Failure records contain the error code and phase. Unreached timestamps and durations are `null`.
+`healthy`, `noop`, `built`, and `planned` represent successful stages. Superseded releases, failures, API errors, and timeouts fail the step. Failure records contain the error code and phase. Unreached timestamps and durations are `null`.
 
 The release record lists only component builds from this run.
 

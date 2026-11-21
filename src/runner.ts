@@ -14,6 +14,7 @@ import {
   timelineKeys,
 } from "./model.js";
 import { execute, type Dependencies } from "./action.js";
+import { createBuildResult, readStage, type Plan, type Stage } from "./stages.js";
 import { run } from "./process.js";
 import { installRegctl, prepareTailscale } from "./tools.js";
 import { cleanupTailscale, existingTailscale } from "./tailscale.js";
@@ -117,19 +118,30 @@ export async function runAction(
     result: { status: "failed", infra_commit: "", error: null },
   };
   let problem: ActionError | undefined;
+  let stage: Stage = "release";
+  let plan: Plan | undefined;
   const capture = (error: unknown, phase: string) => {
     problem ??= failure(error, phase);
   };
   try {
-    const inputs = parseInputs(report.input);
+    stage = readStage(report.input("stage"));
+    const inputs = parseInputs((key) =>
+      stage === "build" && key === "deploy" ? "false" : report.input(key),
+    );
     for (const secret of inputs.buildSecrets ?? []) core.setSecret(secret.value);
     record = initialRecord(inputs, env, deps.now());
-    await execute(
+    plan = await execute(
       inputs,
       record,
       report.input("github-token") || env.GITHUB_TOKEN || "",
       work,
       deps,
+      stage,
+      {
+        plan: report.input("plan"),
+        component: report.input("build-component"),
+        results: report.input("build-results"),
+      },
     );
   } catch (error) {
     capture(error, "action");
@@ -171,7 +183,8 @@ export async function runAction(
   record.durations = durations(record.timeline);
   await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`);
   try {
-    await report.artifact(recordPath, directory);
+    if (stage === "release" || stage === "finalize")
+      await report.artifact(recordPath, directory);
   } catch {
     capture(
       new ActionError(
@@ -199,6 +212,8 @@ export async function runAction(
       ),
     ),
     record: recordPath,
+    ...(plan && !problem ? { plan: JSON.stringify(plan), "build-components": JSON.stringify(plan.names) } : {}),
+    ...(stage === "build" && !problem ? { "build-result": JSON.stringify(createBuildResult(record)) } : {}),
   }))
     report.output(key, value);
   if (env.GITHUB_STEP_SUMMARY)

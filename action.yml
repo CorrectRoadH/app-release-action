@@ -4,6 +4,15 @@ branding:
   icon: upload-cloud
   color: blue
 inputs:
+  stage:
+    description: Release execution mode (release, plan, build, or finalize)
+    default: release
+  plan:
+    description: Preflight plan JSON output (required for build and finalize)
+  build-component:
+    description: One planned component name (required for build)
+  build-results:
+    description: JSON array of build-result objects for the plan (required for finalize)
   app:
     description: Registered application name
     required: true
@@ -42,12 +51,18 @@ inputs:
     description: Time limit for requesting and polling deployment (s, m or h)
     default: 15m
 outputs:
+  plan:
+    description: Validated release plan to pass to build and finalize
+  build-components:
+    description: JSON array of component names selected by preflight
+  build-result:
+    description: JSON record for the component built by this job
   version:
     description: UTC date and run number/attempt version tag
   release-id:
     description: Deployer release ID (empty for deploy=false)
   status:
-    description: Final release status (built for deploy=false)
+    description: Stage status (planned, built, or final release status)
   infra-commit:
     description: Infrastructure write-back commit SHA
   digests:

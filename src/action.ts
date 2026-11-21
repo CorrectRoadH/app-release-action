@@ -17,6 +17,7 @@ import { installRegctl, prepareTailscale } from "./tools.js";
 import { connectTailscale, existingTailscale } from "./tailscale.js";
 import { metadata } from "./github.js";
 import { buildSecretOptions } from "./build-secrets.js";
+import { collectBuilds, createPlan, readPlan, type Plan, type Stage } from "./stages.js";
 
 export const UPSTREAM_REVISION_LABEL =
   "io.github.correctroadh.app-release-action.upstream-revision";
@@ -37,7 +38,9 @@ export async function execute(
   token: string,
   directory: string,
   deps: Dependencies,
-): Promise<void> {
+  stage: Stage = "release",
+  stageInputs: { plan: string; component: string; results: string } = { plan: "", component: "", results: "" },
+): Promise<Plan | undefined> {
   if (process.platform !== "linux" || !["x64", "arm64"].includes(process.arch))
     throw new ActionError(
       "unsupported_runner",
@@ -46,44 +49,36 @@ export async function execute(
     );
   if (!token)
     throw new ActionError("missing_token", "setup", "github-token is required");
+  if (stage === "build") {
+    const plan = readPlan(stageInputs.plan, inputs, record);
+    const component = inputs.components.find(({ name }) => name === stageInputs.component && plan.names.includes(name));
+    if (!component)
+      throw new ActionError("invalid_stage_input", "inputs", "build-component must be in the plan");
+    await build(inputs, [component], record, token, directory, deps);
+    record.result.status = "built";
+    return;
+  }
+  if (!inputs.deploy && stage !== "release")
+    throw new ActionError("invalid_stage_input", "inputs", "plan and finalize require deploy=true");
+  if (stage === "finalize") {
+    const plan = readPlan(stageInputs.plan, inputs, record);
+    collectBuilds(stageInputs.results, plan, inputs, record);
+    await connect(inputs, directory, deps);
+    await submit(inputs, record, deps, plan.incremental);
+    return;
+  }
+
   let buildComponents = inputs.components;
   let incremental: IncrementalRelease | undefined;
   if (inputs.deploy) {
-    // direct: the runner already reaches the deployer (e.g. an in-cluster runner).
-    if (inputs.network === "tailscale") {
-      const tailscaleDir = join(directory, "tailscale");
-      await mkdir(tailscaleDir, { recursive: true });
-      await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
-      deps.state("tailscale", tailscaleDir);
-      await connectTailscale(
-        tailscaleDir,
-        inputs,
-        deps.exec,
-        deps.existingTailscale,
-      );
-    }
+    await connect(inputs, directory, deps);
     const componentNames = inputs.components.map((component) => component.name);
     const baseline = await preflight(
-      inputs.app,
-      componentNames,
-      inputs.deployerUrl,
-      inputs.timeoutMs,
-      {
-        fetch: deps.fetch,
-        token: () => oidc("app-deployer", deps.fetch),
-        now: () => deps.now().getTime(),
-        sleep: deps.sleep,
-      },
+      inputs.app, componentNames, inputs.deployerUrl, inputs.timeoutMs, client(deps),
     );
-    if (
-      baseline &&
-      baseline.revision === inputs.incrementalBase &&
-      inputs.changedComponents?.length
-    ) {
+    if (baseline && baseline.revision === inputs.incrementalBase && inputs.changedComponents?.length) {
       const changed = new Set(inputs.changedComponents);
-      const updated = inputs.components.filter((component) =>
-        changed.has(component.name),
-      );
+      const updated = inputs.components.filter((component) => changed.has(component.name));
       const retain = componentNames.filter((name) => !changed.has(name));
       if (updated.length === inputs.changedComponents.length && retain.length > 0) {
         buildComponents = updated;
@@ -91,13 +86,55 @@ export async function execute(
       }
     }
   }
-  const tools = join(directory, "tools");
-  const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
+  if (stage === "plan") {
+    await readMetadata(record, token, deps);
+    record.result.status = "planned";
+    return createPlan(record, buildComponents.map(({ name }) => name), incremental);
+  }
+  await build(inputs, buildComponents, record, token, directory, deps, true);
+  record.durations = durations(record.timeline);
+  if (inputs.deploy) await submit(inputs, record, deps, incremental);
+  else record.result.status = "built";
+}
+
+function client(deps: Dependencies) {
+  return {
+    fetch: deps.fetch,
+    token: () => oidc("app-deployer", deps.fetch),
+    now: () => deps.now().getTime(),
+    sleep: deps.sleep,
+  };
+}
+
+async function connect(inputs: Inputs, directory: string, deps: Dependencies): Promise<void> {
+  if (inputs.network === "direct") return;
+  const tailscaleDir = join(directory, "tailscale");
+  await mkdir(tailscaleDir, { recursive: true });
+  await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
+  deps.state("tailscale", tailscaleDir);
+  await connectTailscale(tailscaleDir, inputs, deps.exec, deps.existingTailscale);
+}
+
+async function readMetadata(record: ReleaseRecord, token: string, deps: Dependencies): Promise<void> {
   try {
     await metadata(record, token, process.env, deps.fetch);
   } catch (error) {
     throw failure(error, "metadata");
   }
+}
+
+async function build(
+  inputs: Inputs,
+  buildComponents: Inputs["components"],
+  record: ReleaseRecord,
+  token: string,
+  directory: string,
+  deps: Dependencies,
+  includeMetadata = false,
+): Promise<void> {
+  const tools = join(directory, "tools");
+  const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
+  if (includeMetadata) await readMetadata(record, token, deps);
   const builder = `app-release-${randomUUID()}`;
   deps.state("builder", builder);
   try {
@@ -261,21 +298,19 @@ export async function execute(
     });
     deps.state("builder", "");
   }
-  record.durations = durations(record.timeline);
-  if (!inputs.deploy) {
-    record.result.status = "built";
-    return;
-  }
+}
+
+async function submit(
+  inputs: Inputs,
+  record: ReleaseRecord,
+  deps: Dependencies,
+  incremental: IncrementalRelease | undefined,
+): Promise<void> {
   await deploy(
     record,
     inputs.deployerUrl,
     inputs.timeoutMs,
-    {
-      fetch: deps.fetch,
-      token: () => oidc("app-deployer", deps.fetch),
-      now: () => deps.now().getTime(),
-      sleep: deps.sleep,
-    },
+    client(deps),
     (r) => {
       record.release_id = r.release_id;
       Object.assign(record.timeline, r.timeline);

@@ -1377,12 +1377,12 @@ var require_util = __commonJS({
       }
       obj[kListeners] = null;
     }
-    function errorRequest(client, request2, err) {
+    function errorRequest(client2, request2, err) {
       try {
         request2.onError(err);
         assert(request2.aborted);
       } catch (err2) {
-        client.emit("error", err2);
+        client2.emit("error", err2);
       }
     }
     var kEnumerableProperty = /* @__PURE__ */ Object.create(null);
@@ -2571,7 +2571,7 @@ var require_connect = __commonJS({
       const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions);
       timeout = timeout == null ? 1e4 : timeout;
       allowH2 = allowH2 != null ? allowH2 : false;
-      return function connect({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
+      return function connect2({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
         let socket;
         if (protocol === "https:") {
           if (!tls) {
@@ -5851,11 +5851,11 @@ var require_client_h1 = __commonJS({
     var TIMEOUT_BODY = 4 | USE_FAST_TIMER;
     var TIMEOUT_KEEP_ALIVE = 8 | USE_NATIVE_TIMER;
     var Parser = class {
-      constructor(client, socket, { exports: exports3 }) {
-        assert(Number.isFinite(client[kMaxHeadersSize]) && client[kMaxHeadersSize] > 0);
+      constructor(client2, socket, { exports: exports3 }) {
+        assert(Number.isFinite(client2[kMaxHeadersSize]) && client2[kMaxHeadersSize] > 0);
         this.llhttp = exports3;
         this.ptr = this.llhttp.llhttp_alloc(constants3.TYPE.RESPONSE);
-        this.client = client;
+        this.client = client2;
         this.socket = socket;
         this.timeout = null;
         this.timeoutValue = null;
@@ -5865,7 +5865,7 @@ var require_client_h1 = __commonJS({
         this.upgrade = false;
         this.headers = [];
         this.headersSize = 0;
-        this.headersMaxSize = client[kMaxHeadersSize];
+        this.headersMaxSize = client2[kMaxHeadersSize];
         this.shouldKeepAlive = false;
         this.paused = false;
         this.resume = this.resume.bind(this);
@@ -5873,7 +5873,7 @@ var require_client_h1 = __commonJS({
         this.keepAlive = "";
         this.contentLength = "";
         this.connection = "";
-        this.maxResponseSize = client[kMaxResponseSize];
+        this.maxResponseSize = client2[kMaxResponseSize];
       }
       setTimeout(delay, type) {
         if (delay !== this.timeoutValue || type & USE_FAST_TIMER ^ this.timeoutType & USE_FAST_TIMER) {
@@ -6013,15 +6013,15 @@ var require_client_h1 = __commonJS({
         this.statusText = buf.toString();
       }
       onMessageBegin() {
-        const { socket, client } = this;
+        const { socket, client: client2 } = this;
         if (socket.destroyed) {
           return -1;
         }
-        if (client[kRunning] === 0) {
+        if (client2[kRunning] === 0) {
           util.destroy(socket, new SocketError("bad response", util.getSocketInfo(socket)));
           return -1;
         }
-        const request2 = client[kQueue][client[kRunningIdx]];
+        const request2 = client2[kQueue][client2[kRunningIdx]];
         if (!request2) {
           return -1;
         }
@@ -6064,13 +6064,13 @@ var require_client_h1 = __commonJS({
         }
       }
       onUpgrade(head) {
-        const { upgrade, client, socket, headers, statusCode, statusText } = this;
+        const { upgrade, client: client2, socket, headers, statusCode, statusText } = this;
         assert(upgrade);
-        assert(client[kSocket] === socket);
+        assert(client2[kSocket] === socket);
         assert(!socket.destroyed);
         assert(!this.paused);
         assert((headers.length & 1) === 0);
-        const request2 = client[kQueue][client[kRunningIdx]];
+        const request2 = client2[kQueue][client2[kRunningIdx]];
         assert(request2);
         assert(request2.upgrade || request2.method === "CONNECT");
         this.statusCode = null;
@@ -6084,28 +6084,28 @@ var require_client_h1 = __commonJS({
         socket[kClient] = null;
         socket[kError] = null;
         removeAllListeners(socket);
-        client[kSocket] = null;
-        client[kHTTPContext] = null;
-        client[kQueue][client[kRunningIdx]++] = null;
-        client.emit("disconnect", client[kUrl], [client], new InformationalError("upgrade"));
+        client2[kSocket] = null;
+        client2[kHTTPContext] = null;
+        client2[kQueue][client2[kRunningIdx]++] = null;
+        client2.emit("disconnect", client2[kUrl], [client2], new InformationalError("upgrade"));
         try {
           request2.onUpgrade(statusCode, headers, socket, statusText);
         } catch (error2) {
-          util.errorRequest(client, request2, error2);
+          util.errorRequest(client2, request2, error2);
           util.destroy(socket, error2);
         }
-        client[kResume]();
+        client2[kResume]();
       }
       onHeadersComplete(statusCode, upgrade, shouldKeepAlive) {
-        const { client, socket, headers, statusText } = this;
+        const { client: client2, socket, headers, statusText } = this;
         if (socket.destroyed) {
           return -1;
         }
-        if (client[kRunning] === 0) {
+        if (client2[kRunning] === 0) {
           util.destroy(socket, new SocketError("bad response", util.getSocketInfo(socket)));
           return -1;
         }
-        const request2 = client[kQueue][client[kRunningIdx]];
+        const request2 = client2[kQueue][client2[kRunningIdx]];
         if (!request2) {
           return -1;
         }
@@ -6124,7 +6124,7 @@ var require_client_h1 = __commonJS({
         this.shouldKeepAlive = shouldKeepAlive || // Override llhttp value which does not allow keepAlive for HEAD.
         request2.method === "HEAD" && !socket[kReset] && this.connection.toLowerCase() === "keep-alive";
         if (this.statusCode >= 200) {
-          const bodyTimeout = request2.bodyTimeout != null ? request2.bodyTimeout : client[kBodyTimeout];
+          const bodyTimeout = request2.bodyTimeout != null ? request2.bodyTimeout : client2[kBodyTimeout];
           this.setTimeout(bodyTimeout, TIMEOUT_BODY);
         } else if (this.timeout) {
           if (this.timeout.refresh) {
@@ -6132,32 +6132,32 @@ var require_client_h1 = __commonJS({
           }
         }
         if (request2.method === "CONNECT") {
-          assert(client[kRunning] === 1);
+          assert(client2[kRunning] === 1);
           this.upgrade = true;
           return 2;
         }
         if (upgrade) {
-          assert(client[kRunning] === 1);
+          assert(client2[kRunning] === 1);
           this.upgrade = true;
           return 2;
         }
         assert((this.headers.length & 1) === 0);
         this.headers = [];
         this.headersSize = 0;
-        if (this.shouldKeepAlive && client[kPipelining]) {
+        if (this.shouldKeepAlive && client2[kPipelining]) {
           const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null;
           if (keepAliveTimeout != null) {
             const timeout = Math.min(
-              keepAliveTimeout - client[kKeepAliveTimeoutThreshold],
-              client[kKeepAliveMaxTimeout]
+              keepAliveTimeout - client2[kKeepAliveTimeoutThreshold],
+              client2[kKeepAliveMaxTimeout]
             );
             if (timeout <= 0) {
               socket[kReset] = true;
             } else {
-              client[kKeepAliveTimeoutValue] = timeout;
+              client2[kKeepAliveTimeoutValue] = timeout;
             }
           } else {
-            client[kKeepAliveTimeoutValue] = client[kKeepAliveDefaultTimeout];
+            client2[kKeepAliveTimeoutValue] = client2[kKeepAliveDefaultTimeout];
           }
         } else {
           socket[kReset] = true;
@@ -6174,16 +6174,16 @@ var require_client_h1 = __commonJS({
         }
         if (socket[kBlocking]) {
           socket[kBlocking] = false;
-          client[kResume]();
+          client2[kResume]();
         }
         return pause ? constants3.ERROR.PAUSED : 0;
       }
       onBody(buf) {
-        const { client, socket, statusCode, maxResponseSize } = this;
+        const { client: client2, socket, statusCode, maxResponseSize } = this;
         if (socket.destroyed) {
           return -1;
         }
-        const request2 = client[kQueue][client[kRunningIdx]];
+        const request2 = client2[kQueue][client2[kRunningIdx]];
         assert(request2);
         assert(this.timeoutType === TIMEOUT_BODY);
         if (this.timeout) {
@@ -6202,7 +6202,7 @@ var require_client_h1 = __commonJS({
         }
       }
       onMessageComplete() {
-        const { client, socket, statusCode, upgrade, headers, contentLength, bytesRead, shouldKeepAlive } = this;
+        const { client: client2, socket, statusCode, upgrade, headers, contentLength, bytesRead, shouldKeepAlive } = this;
         if (socket.destroyed && (!statusCode || shouldKeepAlive)) {
           return -1;
         }
@@ -6211,7 +6211,7 @@ var require_client_h1 = __commonJS({
         }
         assert(statusCode >= 100);
         assert((this.headers.length & 1) === 0);
-        const request2 = client[kQueue][client[kRunningIdx]];
+        const request2 = client2[kQueue][client2[kRunningIdx]];
         assert(request2);
         this.statusCode = null;
         this.statusText = "";
@@ -6229,29 +6229,29 @@ var require_client_h1 = __commonJS({
           return -1;
         }
         request2.onComplete(headers);
-        client[kQueue][client[kRunningIdx]++] = null;
+        client2[kQueue][client2[kRunningIdx]++] = null;
         socket[kSocketUsed] = true;
         if (socket[kWriting]) {
-          assert(client[kRunning] === 0);
+          assert(client2[kRunning] === 0);
           util.destroy(socket, new InformationalError("reset"));
           return constants3.ERROR.PAUSED;
         } else if (!shouldKeepAlive) {
           util.destroy(socket, new InformationalError("reset"));
           return constants3.ERROR.PAUSED;
-        } else if (socket[kReset] && client[kRunning] === 0) {
+        } else if (socket[kReset] && client2[kRunning] === 0) {
           util.destroy(socket, new InformationalError("reset"));
           return constants3.ERROR.PAUSED;
-        } else if (client[kPipelining] == null || client[kPipelining] === 1) {
-          setImmediate(() => client[kResume]());
+        } else if (client2[kPipelining] == null || client2[kPipelining] === 1) {
+          setImmediate(() => client2[kResume]());
         } else {
-          client[kResume]();
+          client2[kResume]();
         }
       }
     };
     function onParserTimeout(parser) {
-      const { socket, timeoutType, client, paused } = parser.deref();
+      const { socket, timeoutType, client: client2, paused } = parser.deref();
       if (timeoutType === TIMEOUT_HEADERS) {
-        if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
+        if (!socket[kWriting] || socket.writableNeedDrain || client2[kRunning] > 1) {
           assert(!paused, "cannot be paused while waiting for headers");
           util.destroy(socket, new HeadersTimeoutError());
         }
@@ -6260,12 +6260,12 @@ var require_client_h1 = __commonJS({
           util.destroy(socket, new BodyTimeoutError());
         }
       } else if (timeoutType === TIMEOUT_KEEP_ALIVE) {
-        assert(client[kRunning] === 0 && client[kKeepAliveTimeoutValue]);
+        assert(client2[kRunning] === 0 && client2[kKeepAliveTimeoutValue]);
         util.destroy(socket, new InformationalError("socket idle timeout"));
       }
     }
-    async function connectH1(client, socket) {
-      client[kSocket] = socket;
+    async function connectH1(client2, socket) {
+      client2[kSocket] = socket;
       if (!llhttpInstance) {
         llhttpInstance = await llhttpPromise;
         llhttpPromise = null;
@@ -6277,7 +6277,7 @@ var require_client_h1 = __commonJS({
       socket[kIdleSocketValidation] = 0;
       socket[kIdleSocketValidationTimeout] = null;
       socket[kSocketUsed] = false;
-      socket[kParser] = new Parser(client, socket, llhttpInstance);
+      socket[kParser] = new Parser(client2, socket, llhttpInstance);
       addListener(socket, "error", function(err) {
         const parser = this[kParser];
         if (err.code === "ECONNRESET" && parser.statusCode && !parser.shouldKeepAlive) {
@@ -6309,7 +6309,7 @@ var require_client_h1 = __commonJS({
         util.destroy(this, new SocketError("other side closed", util.getSocketInfo(this)));
       });
       addListener(socket, "close", function() {
-        const client2 = this[kClient];
+        const client3 = this[kClient];
         const parser = this[kParser];
         clearIdleSocketValidation(this);
         if (parser) {
@@ -6320,24 +6320,24 @@ var require_client_h1 = __commonJS({
           this[kParser] = null;
         }
         const err = this[kError] || new SocketError("closed", util.getSocketInfo(this));
-        client2[kSocket] = null;
-        client2[kHTTPContext] = null;
-        if (client2.destroyed) {
-          assert(client2[kPending] === 0);
-          const requests = client2[kQueue].splice(client2[kRunningIdx]);
+        client3[kSocket] = null;
+        client3[kHTTPContext] = null;
+        if (client3.destroyed) {
+          assert(client3[kPending] === 0);
+          const requests = client3[kQueue].splice(client3[kRunningIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request2 = requests[i];
-            util.errorRequest(client2, request2, err);
+            util.errorRequest(client3, request2, err);
           }
-        } else if (client2[kRunning] > 0 && err.code !== "UND_ERR_INFO") {
-          const request2 = client2[kQueue][client2[kRunningIdx]];
-          client2[kQueue][client2[kRunningIdx]++] = null;
-          util.errorRequest(client2, request2, err);
+        } else if (client3[kRunning] > 0 && err.code !== "UND_ERR_INFO") {
+          const request2 = client3[kQueue][client3[kRunningIdx]];
+          client3[kQueue][client3[kRunningIdx]++] = null;
+          util.errorRequest(client3, request2, err);
         }
-        client2[kPendingIdx] = client2[kRunningIdx];
-        assert(client2[kRunning] === 0);
-        client2.emit("disconnect", client2[kUrl], [client2], err);
-        client2[kResume]();
+        client3[kPendingIdx] = client3[kRunningIdx];
+        assert(client3[kRunning] === 0);
+        client3.emit("disconnect", client3[kUrl], [client3], err);
+        client3[kResume]();
       });
       let closed = false;
       socket.on("close", () => {
@@ -6347,10 +6347,10 @@ var require_client_h1 = __commonJS({
         version: "h1",
         defaultPipelining: 1,
         write(...args) {
-          return writeH1(client, ...args);
+          return writeH1(client2, ...args);
         },
         resume() {
-          resumeH1(client);
+          resumeH1(client2);
         },
         destroy(err, callback) {
           if (closed) {
@@ -6367,13 +6367,13 @@ var require_client_h1 = __commonJS({
             return true;
           }
           if (request2) {
-            if (client[kRunning] > 0 && !request2.idempotent) {
+            if (client2[kRunning] > 0 && !request2.idempotent) {
               return true;
             }
-            if (client[kRunning] > 0 && (request2.upgrade || request2.method === "CONNECT")) {
+            if (client2[kRunning] > 0 && (request2.upgrade || request2.method === "CONNECT")) {
               return true;
             }
-            if (client[kRunning] > 0 && util.bodyLength(request2.body) !== 0 && (util.isStream(request2.body) || util.isAsyncIterable(request2.body) || util.isFormDataLike(request2.body))) {
+            if (client2[kRunning] > 0 && util.bodyLength(request2.body) !== 0 && (util.isStream(request2.body) || util.isAsyncIterable(request2.body) || util.isFormDataLike(request2.body))) {
               return true;
             }
           }
@@ -6388,20 +6388,20 @@ var require_client_h1 = __commonJS({
       }
       socket[kIdleSocketValidation] = 0;
     }
-    function scheduleIdleSocketValidation(client, socket) {
+    function scheduleIdleSocketValidation(client2, socket) {
       socket[kIdleSocketValidation] = 1;
       socket[kIdleSocketValidationTimeout] = setImmediate(() => {
         socket[kIdleSocketValidationTimeout] = null;
         socket[kIdleSocketValidation] = 2;
-        if (client[kSocket] === socket && !socket.destroyed) {
-          client[kResume]();
+        if (client2[kSocket] === socket && !socket.destroyed) {
+          client2[kResume]();
         }
       });
     }
-    function resumeH1(client) {
-      const socket = client[kSocket];
+    function resumeH1(client2) {
+      const socket = client2[kSocket];
       if (socket && !socket.destroyed) {
-        if (client[kSize] === 0) {
+        if (client2[kSize] === 0) {
           if (!socket[kNoRef] && socket.unref) {
             socket.unref();
             socket[kNoRef] = true;
@@ -6410,9 +6410,9 @@ var require_client_h1 = __commonJS({
           socket.ref();
           socket[kNoRef] = false;
         }
-        if (client[kRunning] === 0 && client[kPending] > 0 && socket[kSocketUsed]) {
+        if (client2[kRunning] === 0 && client2[kPending] > 0 && socket[kSocketUsed]) {
           if (socket[kIdleSocketValidation] === 0) {
-            scheduleIdleSocketValidation(client, socket);
+            scheduleIdleSocketValidation(client2, socket);
             socket[kParser].readMore();
             if (socket.destroyed) {
               return;
@@ -6427,20 +6427,20 @@ var require_client_h1 = __commonJS({
             return;
           }
         }
-        if (client[kRunning] === 0) {
+        if (client2[kRunning] === 0) {
           socket[kParser].readMore();
           if (socket.destroyed) {
             return;
           }
         }
-        if (client[kSize] === 0) {
+        if (client2[kSize] === 0) {
           if (socket[kParser].timeoutType !== TIMEOUT_KEEP_ALIVE) {
-            socket[kParser].setTimeout(client[kKeepAliveTimeoutValue], TIMEOUT_KEEP_ALIVE);
+            socket[kParser].setTimeout(client2[kKeepAliveTimeoutValue], TIMEOUT_KEEP_ALIVE);
           }
-        } else if (client[kRunning] > 0 && socket[kParser].statusCode < 200) {
+        } else if (client2[kRunning] > 0 && socket[kParser].statusCode < 200) {
           if (socket[kParser].timeoutType !== TIMEOUT_HEADERS) {
-            const request2 = client[kQueue][client[kRunningIdx]];
-            const headersTimeout = request2.headersTimeout != null ? request2.headersTimeout : client[kHeadersTimeout];
+            const request2 = client2[kQueue][client2[kRunningIdx]];
+            const headersTimeout = request2.headersTimeout != null ? request2.headersTimeout : client2[kHeadersTimeout];
             socket[kParser].setTimeout(headersTimeout, TIMEOUT_HEADERS);
           }
         }
@@ -6449,7 +6449,7 @@ var require_client_h1 = __commonJS({
     function shouldSendContentLength(method) {
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
-    function writeH1(client, request2) {
+    function writeH1(client2, request2) {
       const { method, path, host, upgrade, blocking, reset } = request2;
       let { body, headers, contentLength } = request2;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH" || method === "QUERY" || method === "PROPFIND" || method === "PROPPATCH";
@@ -6468,7 +6468,7 @@ var require_client_h1 = __commonJS({
         if (contentType) {
           const contentTypeValue = `${contentType}`;
           if (!util.isValidHeaderValue(contentTypeValue)) {
-            util.errorRequest(client, request2, new InvalidArgumentError("invalid content-type header"));
+            util.errorRequest(client2, request2, new InvalidArgumentError("invalid content-type header"));
             return false;
           }
           headers.push("content-type", contentTypeValue);
@@ -6486,13 +6486,13 @@ var require_client_h1 = __commonJS({
         contentLength = null;
       }
       if (shouldSendContentLength(method) && contentLength > 0 && request2.contentLength !== null && request2.contentLength !== contentLength) {
-        if (client[kStrictContentLength]) {
-          util.errorRequest(client, request2, new RequestContentLengthMismatchError());
+        if (client2[kStrictContentLength]) {
+          util.errorRequest(client2, request2, new RequestContentLengthMismatchError());
           return false;
         }
         process.emitWarning(new RequestContentLengthMismatchError());
       }
-      const socket = client[kSocket];
+      const socket = client2[kSocket];
       clearIdleSocketValidation(socket);
       const abort = (error2) => {
         if (request2.aborted) {
@@ -6504,14 +6504,14 @@ var require_client_h1 = __commonJS({
           }
           return;
         }
-        util.errorRequest(client, request2, error2 || new RequestAbortedError());
+        util.errorRequest(client2, request2, error2 || new RequestAbortedError());
         util.destroy(body);
         util.destroy(socket, new InformationalError("aborted"));
       };
       try {
         request2.onConnect(abort);
       } catch (err) {
-        util.errorRequest(client, request2, err);
+        util.errorRequest(client2, request2, err);
       }
       if (request2.aborted) {
         return false;
@@ -6525,7 +6525,7 @@ var require_client_h1 = __commonJS({
       if (reset != null) {
         socket[kReset] = reset;
       }
-      if (client[kMaxRequests] && socket[kCounter]++ >= client[kMaxRequests]) {
+      if (client2[kMaxRequests] && socket[kCounter]++ >= client2[kMaxRequests]) {
         socket[kReset] = true;
       }
       if (blocking) {
@@ -6537,13 +6537,13 @@ var require_client_h1 = __commonJS({
         header += `host: ${host}\r
 `;
       } else {
-        header += client[kHostHeader];
+        header += client2[kHostHeader];
       }
       if (upgrade) {
         header += `connection: upgrade\r
 upgrade: ${upgrade}\r
 `;
-      } else if (client[kPipelining] && !socket[kReset]) {
+      } else if (client2[kPipelining] && !socket[kReset]) {
         header += "connection: keep-alive\r\n";
       } else {
         header += "connection: close\r\n";
@@ -6567,28 +6567,28 @@ upgrade: ${upgrade}\r
         channels.sendHeaders.publish({ request: request2, headers: header, socket });
       }
       if (!body || bodyLength === 0) {
-        writeBuffer(abort, null, client, request2, socket, contentLength, header, expectsPayload);
+        writeBuffer(abort, null, client2, request2, socket, contentLength, header, expectsPayload);
       } else if (util.isBuffer(body)) {
-        writeBuffer(abort, body, client, request2, socket, contentLength, header, expectsPayload);
+        writeBuffer(abort, body, client2, request2, socket, contentLength, header, expectsPayload);
       } else if (util.isBlobLike(body)) {
         if (typeof body.stream === "function") {
-          writeIterable(abort, body.stream(), client, request2, socket, contentLength, header, expectsPayload);
+          writeIterable(abort, body.stream(), client2, request2, socket, contentLength, header, expectsPayload);
         } else {
-          writeBlob(abort, body, client, request2, socket, contentLength, header, expectsPayload);
+          writeBlob(abort, body, client2, request2, socket, contentLength, header, expectsPayload);
         }
       } else if (util.isStream(body)) {
-        writeStream(abort, body, client, request2, socket, contentLength, header, expectsPayload);
+        writeStream(abort, body, client2, request2, socket, contentLength, header, expectsPayload);
       } else if (util.isIterable(body)) {
-        writeIterable(abort, body, client, request2, socket, contentLength, header, expectsPayload);
+        writeIterable(abort, body, client2, request2, socket, contentLength, header, expectsPayload);
       } else {
         assert(false);
       }
       return true;
     }
-    function writeStream(abort, body, client, request2, socket, contentLength, header, expectsPayload) {
-      assert(contentLength !== 0 || client[kRunning] === 0, "stream body cannot be pipelined");
+    function writeStream(abort, body, client2, request2, socket, contentLength, header, expectsPayload) {
+      assert(contentLength !== 0 || client2[kRunning] === 0, "stream body cannot be pipelined");
       let finished = false;
-      const writer = new AsyncWriter({ abort, socket, request: request2, contentLength, client, expectsPayload, header });
+      const writer = new AsyncWriter({ abort, socket, request: request2, contentLength, client: client2, expectsPayload, header });
       const onData = function(chunk) {
         if (finished) {
           return;
@@ -6623,7 +6623,7 @@ upgrade: ${upgrade}\r
           return;
         }
         finished = true;
-        assert(socket.destroyed || socket[kWriting] && client[kRunning] <= 1);
+        assert(socket.destroyed || socket[kWriting] && client2[kRunning] <= 1);
         socket.off("drain", onDrain).off("error", onFinished);
         body.removeListener("data", onData).removeListener("end", onFinished).removeListener("close", onClose);
         if (!err) {
@@ -6654,7 +6654,7 @@ upgrade: ${upgrade}\r
         setImmediate(onClose);
       }
     }
-    function writeBuffer(abort, body, client, request2, socket, contentLength, header, expectsPayload) {
+    function writeBuffer(abort, body, client2, request2, socket, contentLength, header, expectsPayload) {
       try {
         if (!body) {
           if (contentLength === 0) {
@@ -6680,12 +6680,12 @@ upgrade: ${upgrade}\r
           }
         }
         request2.onRequestSent();
-        client[kResume]();
+        client2[kResume]();
       } catch (err) {
         abort(err);
       }
     }
-    async function writeBlob(abort, body, client, request2, socket, contentLength, header, expectsPayload) {
+    async function writeBlob(abort, body, client2, request2, socket, contentLength, header, expectsPayload) {
       assert(contentLength === body.size, "blob body must have content length");
       try {
         if (contentLength != null && contentLength !== body.size) {
@@ -6703,13 +6703,13 @@ upgrade: ${upgrade}\r
         if (!expectsPayload && request2.reset !== false) {
           socket[kReset] = true;
         }
-        client[kResume]();
+        client2[kResume]();
       } catch (err) {
         abort(err);
       }
     }
-    async function writeIterable(abort, body, client, request2, socket, contentLength, header, expectsPayload) {
-      assert(contentLength !== 0 || client[kRunning] === 0, "iterator body cannot be pipelined");
+    async function writeIterable(abort, body, client2, request2, socket, contentLength, header, expectsPayload) {
+      assert(contentLength !== 0 || client2[kRunning] === 0, "iterator body cannot be pipelined");
       let callback = null;
       function onDrain() {
         if (callback) {
@@ -6727,7 +6727,7 @@ upgrade: ${upgrade}\r
         }
       });
       socket.on("close", onDrain).on("drain", onDrain);
-      const writer = new AsyncWriter({ abort, socket, request: request2, contentLength, client, expectsPayload, header });
+      const writer = new AsyncWriter({ abort, socket, request: request2, contentLength, client: client2, expectsPayload, header });
       try {
         for await (const chunk of body) {
           if (socket[kError]) {
@@ -6745,11 +6745,11 @@ upgrade: ${upgrade}\r
       }
     }
     var AsyncWriter = class {
-      constructor({ abort, socket, request: request2, contentLength, client, expectsPayload, header }) {
+      constructor({ abort, socket, request: request2, contentLength, client: client2, expectsPayload, header }) {
         this.socket = socket;
         this.request = request2;
         this.contentLength = contentLength;
-        this.client = client;
+        this.client = client2;
         this.bytesWritten = 0;
         this.expectsPayload = expectsPayload;
         this.header = header;
@@ -6757,7 +6757,7 @@ upgrade: ${upgrade}\r
         socket[kWriting] = true;
       }
       write(chunk) {
-        const { socket, request: request2, contentLength, client, bytesWritten, expectsPayload, header } = this;
+        const { socket, request: request2, contentLength, client: client2, bytesWritten, expectsPayload, header } = this;
         if (socket[kError]) {
           throw socket[kError];
         }
@@ -6769,7 +6769,7 @@ upgrade: ${upgrade}\r
           return true;
         }
         if (contentLength !== null && bytesWritten + len > contentLength) {
-          if (client[kStrictContentLength]) {
+          if (client2[kStrictContentLength]) {
             throw new RequestContentLengthMismatchError();
           }
           process.emitWarning(new RequestContentLengthMismatchError());
@@ -6807,7 +6807,7 @@ ${len.toString(16)}\r
         return ret;
       }
       end() {
-        const { socket, contentLength, client, bytesWritten, expectsPayload, header, request: request2 } = this;
+        const { socket, contentLength, client: client2, bytesWritten, expectsPayload, header, request: request2 } = this;
         request2.onRequestSent();
         socket[kWriting] = false;
         if (socket[kError]) {
@@ -6829,7 +6829,7 @@ ${len.toString(16)}\r
           socket.write("\r\n0\r\n\r\n", "latin1");
         }
         if (contentLength !== null && bytesWritten !== contentLength) {
-          if (client[kStrictContentLength]) {
+          if (client2[kStrictContentLength]) {
             throw new RequestContentLengthMismatchError();
           } else {
             process.emitWarning(new RequestContentLengthMismatchError());
@@ -6840,13 +6840,13 @@ ${len.toString(16)}\r
             socket[kParser].timeout.refresh();
           }
         }
-        client[kResume]();
+        client2[kResume]();
       }
       destroy(err) {
-        const { socket, client, abort } = this;
+        const { socket, client: client2, abort } = this;
         socket[kWriting] = false;
         if (err) {
-          assert(client[kRunning] <= 1, "pipeline should only contain this request");
+          assert(client2[kRunning] <= 1, "pipeline should only contain this request");
           abort(err);
         }
       }
@@ -6925,41 +6925,41 @@ var require_client_h2 = __commonJS({
       const { [HTTP2_HEADER_STATUS]: _statusCode, ...realHeaders } = headers;
       return parseH2Headers(realHeaders);
     }
-    async function connectH2(client, socket) {
-      client[kSocket] = socket;
+    async function connectH2(client2, socket) {
+      client2[kSocket] = socket;
       if (!h2ExperimentalWarned) {
         h2ExperimentalWarned = true;
         process.emitWarning("H2 support is experimental, expect them to change at any time.", {
           code: "UNDICI-H2"
         });
       }
-      const session = http2.connect(client[kUrl], {
+      const session = http2.connect(client2[kUrl], {
         createConnection: () => socket,
-        peerMaxConcurrentStreams: client[kMaxConcurrentStreams]
+        peerMaxConcurrentStreams: client2[kMaxConcurrentStreams]
       });
       session[kOpenStreams] = 0;
-      session[kClient] = client;
+      session[kClient] = client2;
       session[kSocket] = socket;
       util.addListener(session, "error", onHttp2SessionError);
       util.addListener(session, "frameError", onHttp2FrameError);
       util.addListener(session, "end", onHttp2SessionEnd);
       util.addListener(session, "goaway", onHTTP2GoAway);
       util.addListener(session, "close", function() {
-        const { [kClient]: client2 } = this;
-        const { [kSocket]: socket2 } = client2;
+        const { [kClient]: client3 } = this;
+        const { [kSocket]: socket2 } = client3;
         const err = this[kSocket][kError] || this[kError] || new SocketError("closed", util.getSocketInfo(socket2));
-        client2[kHTTP2Session] = null;
-        if (client2.destroyed) {
-          assert(client2[kPending] === 0);
-          const requests = client2[kQueue].splice(client2[kRunningIdx]);
+        client3[kHTTP2Session] = null;
+        if (client3.destroyed) {
+          assert(client3[kPending] === 0);
+          const requests = client3[kQueue].splice(client3[kRunningIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request2 = requests[i];
-            util.errorRequest(client2, request2, err);
+            util.errorRequest(client3, request2, err);
           }
         }
       });
       session.unref();
-      client[kHTTP2Session] = session;
+      client2[kHTTP2Session] = session;
       socket[kHTTP2Session] = session;
       util.addListener(socket, "error", function(err) {
         this[kError] = err;
@@ -6970,14 +6970,14 @@ var require_client_h2 = __commonJS({
       });
       util.addListener(socket, "close", function() {
         const err = this[kError] || new SocketError("closed", util.getSocketInfo(this));
-        client[kSocket] = null;
+        client2[kSocket] = null;
         if (this[kHTTP2Session] != null) {
           this[kHTTP2Session].destroy(err);
         }
-        client[kPendingIdx] = client[kRunningIdx];
-        assert(client[kRunning] === 0);
-        client.emit("disconnect", client[kUrl], [client], err);
-        client[kResume]();
+        client2[kPendingIdx] = client2[kRunningIdx];
+        assert(client2[kRunning] === 0);
+        client2.emit("disconnect", client2[kUrl], [client2], err);
+        client2[kResume]();
       });
       let closed = false;
       socket.on("close", () => {
@@ -6987,10 +6987,10 @@ var require_client_h2 = __commonJS({
         version: "h2",
         defaultPipelining: Infinity,
         write(...args) {
-          return writeH2(client, ...args);
+          return writeH2(client2, ...args);
         },
         resume() {
-          resumeH2(client);
+          resumeH2(client2);
         },
         destroy(err, callback) {
           if (closed) {
@@ -7007,15 +7007,15 @@ var require_client_h2 = __commonJS({
         }
       };
     }
-    function resumeH2(client) {
-      const socket = client[kSocket];
+    function resumeH2(client2) {
+      const socket = client2[kSocket];
       if (socket?.destroyed === false) {
-        if (client[kSize] === 0 && client[kMaxConcurrentStreams] === 0) {
+        if (client2[kSize] === 0 && client2[kMaxConcurrentStreams] === 0) {
           socket.unref();
-          client[kHTTP2Session].unref();
+          client2[kHTTP2Session].unref();
         } else {
           socket.ref();
-          client[kHTTP2Session].ref();
+          client2[kHTTP2Session].ref();
         }
       }
     }
@@ -7037,33 +7037,33 @@ var require_client_h2 = __commonJS({
     }
     function onHTTP2GoAway(code) {
       const err = this[kError] || new SocketError(`HTTP/2: "GOAWAY" frame received with code ${code}`, util.getSocketInfo(this));
-      const client = this[kClient];
-      client[kSocket] = null;
-      client[kHTTPContext] = null;
+      const client2 = this[kClient];
+      client2[kSocket] = null;
+      client2[kHTTPContext] = null;
       if (this[kHTTP2Session] != null) {
         this[kHTTP2Session].destroy(err);
         this[kHTTP2Session] = null;
       }
       util.destroy(this[kSocket], err);
-      if (client[kRunningIdx] < client[kQueue].length) {
-        const request2 = client[kQueue][client[kRunningIdx]];
-        client[kQueue][client[kRunningIdx]++] = null;
-        util.errorRequest(client, request2, err);
-        client[kPendingIdx] = client[kRunningIdx];
+      if (client2[kRunningIdx] < client2[kQueue].length) {
+        const request2 = client2[kQueue][client2[kRunningIdx]];
+        client2[kQueue][client2[kRunningIdx]++] = null;
+        util.errorRequest(client2, request2, err);
+        client2[kPendingIdx] = client2[kRunningIdx];
       }
-      assert(client[kRunning] === 0);
-      client.emit("disconnect", client[kUrl], [client], err);
-      client[kResume]();
+      assert(client2[kRunning] === 0);
+      client2.emit("disconnect", client2[kUrl], [client2], err);
+      client2[kResume]();
     }
     function shouldSendContentLength(method) {
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
-    function writeH2(client, request2) {
-      const session = client[kHTTP2Session];
+    function writeH2(client2, request2) {
+      const session = client2[kHTTP2Session];
       const { method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let { body } = request2;
       if (upgrade) {
-        util.errorRequest(client, request2, new Error("Upgrade not supported for H2"));
+        util.errorRequest(client2, request2, new Error("Upgrade not supported for H2"));
         return false;
       }
       const headers = {};
@@ -7083,7 +7083,7 @@ var require_client_h2 = __commonJS({
         }
       }
       let stream;
-      const { hostname, port } = client[kUrl];
+      const { hostname, port } = client2[kUrl];
       headers[HTTP2_HEADER_AUTHORITY] = host || `${hostname}${port ? `:${port}` : ""}`;
       headers[HTTP2_HEADER_METHOD] = method;
       const abort = (error2) => {
@@ -7097,18 +7097,18 @@ var require_client_h2 = __commonJS({
           return;
         }
         error2 = error2 || new RequestAbortedError();
-        util.errorRequest(client, request2, error2);
+        util.errorRequest(client2, request2, error2);
         if (stream != null) {
           util.destroy(stream, error2);
         }
         util.destroy(body, error2);
-        client[kQueue][client[kRunningIdx]++] = null;
-        client[kResume]();
+        client2[kQueue][client2[kRunningIdx]++] = null;
+        client2[kResume]();
       };
       try {
         request2.onConnect(abort);
       } catch (err) {
-        util.errorRequest(client, request2, err);
+        util.errorRequest(client2, request2, err);
       }
       if (request2.aborted) {
         return false;
@@ -7140,7 +7140,7 @@ var require_client_h2 = __commonJS({
           }
           stream.off("error", abort);
           stream.once(errorMonitor, onUpgradeError);
-          client[kQueue][client[kRunningIdx]++] = null;
+          client2[kQueue][client2[kRunningIdx]++] = null;
         };
         stream.once("response", onResponse);
         stream.once("error", abort);
@@ -7178,8 +7178,8 @@ var require_client_h2 = __commonJS({
         contentLength = null;
       }
       if (shouldSendContentLength(method) && contentLength > 0 && request2.contentLength != null && request2.contentLength !== contentLength) {
-        if (client[kStrictContentLength]) {
-          util.errorRequest(client, request2, new RequestContentLengthMismatchError());
+        if (client2[kStrictContentLength]) {
+          util.errorRequest(client2, request2, new RequestContentLengthMismatchError());
           return false;
         }
         process.emitWarning(new RequestContentLengthMismatchError());
@@ -7207,7 +7207,7 @@ var require_client_h2 = __commonJS({
         request2.onResponseStarted();
         if (request2.aborted) {
           const err = new RequestAbortedError();
-          util.errorRequest(client, request2, err);
+          util.errorRequest(client2, request2, err);
           util.destroy(stream, err);
           return;
         }
@@ -7228,9 +7228,9 @@ var require_client_h2 = __commonJS({
           session.unref();
         }
         abort(new InformationalError("HTTP/2: stream half-closed (remote)"));
-        client[kQueue][client[kRunningIdx]++] = null;
-        client[kPendingIdx] = client[kRunningIdx];
-        client[kResume]();
+        client2[kQueue][client2[kRunningIdx]++] = null;
+        client2[kPendingIdx] = client2[kRunningIdx];
+        client2[kResume]();
       });
       stream.once("close", () => {
         session[kOpenStreams] -= 1;
@@ -7251,9 +7251,9 @@ var require_client_h2 = __commonJS({
             abort,
             stream,
             null,
-            client,
+            client2,
             request2,
-            client[kSocket],
+            client2[kSocket],
             contentLength,
             expectsPayload
           );
@@ -7262,9 +7262,9 @@ var require_client_h2 = __commonJS({
             abort,
             stream,
             body,
-            client,
+            client2,
             request2,
-            client[kSocket],
+            client2[kSocket],
             contentLength,
             expectsPayload
           );
@@ -7274,9 +7274,9 @@ var require_client_h2 = __commonJS({
               abort,
               stream,
               body.stream(),
-              client,
+              client2,
               request2,
-              client[kSocket],
+              client2[kSocket],
               contentLength,
               expectsPayload
             );
@@ -7285,9 +7285,9 @@ var require_client_h2 = __commonJS({
               abort,
               stream,
               body,
-              client,
+              client2,
               request2,
-              client[kSocket],
+              client2[kSocket],
               contentLength,
               expectsPayload
             );
@@ -7295,11 +7295,11 @@ var require_client_h2 = __commonJS({
         } else if (util.isStream(body)) {
           writeStream(
             abort,
-            client[kSocket],
+            client2[kSocket],
             expectsPayload,
             stream,
             body,
-            client,
+            client2,
             request2,
             contentLength
           );
@@ -7308,9 +7308,9 @@ var require_client_h2 = __commonJS({
             abort,
             stream,
             body,
-            client,
+            client2,
             request2,
-            client[kSocket],
+            client2[kSocket],
             contentLength,
             expectsPayload
           );
@@ -7319,7 +7319,7 @@ var require_client_h2 = __commonJS({
         }
       }
     }
-    function writeBuffer(abort, h2stream, body, client, request2, socket, contentLength, expectsPayload) {
+    function writeBuffer(abort, h2stream, body, client2, request2, socket, contentLength, expectsPayload) {
       try {
         if (body != null && util.isBuffer(body)) {
           assert(contentLength === body.byteLength, "buffer body must have content length");
@@ -7333,13 +7333,13 @@ var require_client_h2 = __commonJS({
           socket[kReset] = true;
         }
         request2.onRequestSent();
-        client[kResume]();
+        client2[kResume]();
       } catch (error2) {
         abort(error2);
       }
     }
-    function writeStream(abort, socket, expectsPayload, h2stream, body, client, request2, contentLength) {
-      assert(contentLength !== 0 || client[kRunning] === 0, "stream body cannot be pipelined");
+    function writeStream(abort, socket, expectsPayload, h2stream, body, client2, request2, contentLength) {
+      assert(contentLength !== 0 || client2[kRunning] === 0, "stream body cannot be pipelined");
       const pipe = pipeline(
         body,
         h2stream,
@@ -7353,7 +7353,7 @@ var require_client_h2 = __commonJS({
             if (!expectsPayload) {
               socket[kReset] = true;
             }
-            client[kResume]();
+            client2[kResume]();
           }
         }
       );
@@ -7362,7 +7362,7 @@ var require_client_h2 = __commonJS({
         request2.onBodySent(chunk);
       }
     }
-    async function writeBlob(abort, h2stream, body, client, request2, socket, contentLength, expectsPayload) {
+    async function writeBlob(abort, h2stream, body, client2, request2, socket, contentLength, expectsPayload) {
       assert(contentLength === body.size, "blob body must have content length");
       try {
         if (contentLength != null && contentLength !== body.size) {
@@ -7378,13 +7378,13 @@ var require_client_h2 = __commonJS({
         if (!expectsPayload) {
           socket[kReset] = true;
         }
-        client[kResume]();
+        client2[kResume]();
       } catch (err) {
         abort(err);
       }
     }
-    async function writeIterable(abort, h2stream, body, client, request2, socket, contentLength, expectsPayload) {
-      assert(contentLength !== 0 || client[kRunning] === 0, "iterator body cannot be pipelined");
+    async function writeIterable(abort, h2stream, body, client2, request2, socket, contentLength, expectsPayload) {
+      assert(contentLength !== 0 || client2[kRunning] === 0, "iterator body cannot be pipelined");
       let callback = null;
       function onDrain() {
         if (callback) {
@@ -7418,7 +7418,7 @@ var require_client_h2 = __commonJS({
         if (!expectsPayload) {
           socket[kReset] = true;
         }
-        client[kResume]();
+        client2[kResume]();
       } catch (err) {
         abort(err);
       } finally {
@@ -7675,8 +7675,8 @@ var require_client = __commonJS({
     var kClosedResolve = /* @__PURE__ */ Symbol("kClosedResolve");
     var noop = () => {
     };
-    function getPipelining(client) {
-      return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1;
+    function getPipelining(client2) {
+      return client2[kPipelining] ?? client2[kHTTPContext]?.defaultPipelining ?? 1;
     }
     var Client = class extends DispatcherBase {
       /**
@@ -7704,7 +7704,7 @@ var require_client = __commonJS({
         strictContentLength,
         maxCachedSessions,
         maxRedirections,
-        connect: connect2,
+        connect: connect3,
         maxRequestsPerClient,
         localAddress,
         maxResponseSize,
@@ -7756,7 +7756,7 @@ var require_client = __commonJS({
         if (bodyTimeout != null && (!Number.isInteger(bodyTimeout) || bodyTimeout < 0)) {
           throw new InvalidArgumentError("bodyTimeout must be a positive integer or zero");
         }
-        if (connect2 != null && typeof connect2 !== "function" && typeof connect2 !== "object") {
+        if (connect3 != null && typeof connect3 !== "function" && typeof connect3 !== "object") {
           throw new InvalidArgumentError("connect must be a function or an object");
         }
         if (maxRedirections != null && (!Number.isInteger(maxRedirections) || maxRedirections < 0)) {
@@ -7780,15 +7780,15 @@ var require_client = __commonJS({
         if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== "number" || maxConcurrentStreams < 1)) {
           throw new InvalidArgumentError("maxConcurrentStreams must be a positive integer, greater than 0");
         }
-        if (typeof connect2 !== "function") {
-          connect2 = buildConnector({
+        if (typeof connect3 !== "function") {
+          connect3 = buildConnector({
             ...tls,
             maxCachedSessions,
             allowH2,
             socketPath,
             timeout: connectTimeout,
             ...autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
-            ...connect2
+            ...connect3
           });
         }
         if (interceptors?.Client && Array.isArray(interceptors.Client)) {
@@ -7803,7 +7803,7 @@ var require_client = __commonJS({
           this[kInterceptors] = [createRedirectInterceptor({ maxRedirections })];
         }
         this[kUrl] = util.parseOrigin(url);
-        this[kConnector] = connect2;
+        this[kConnector] = connect3;
         this[kPipelining] = pipelining != null ? pipelining : 1;
         this[kMaxHeadersSize] = maxHeaderSize || http.maxHeaderSize;
         this[kKeepAliveDefaultTimeout] = keepAliveTimeout == null ? 4e3 : keepAliveTimeout;
@@ -7857,7 +7857,7 @@ var require_client = __commonJS({
       }
       /* istanbul ignore: only used for test */
       [kConnect](cb) {
-        connect(this);
+        connect2(this);
         this.once("connect", cb);
       }
       [kDispatch](opts, handler) {
@@ -7910,21 +7910,21 @@ var require_client = __commonJS({
       }
     };
     var createRedirectInterceptor = require_redirect_interceptor();
-    function onError(client, err) {
-      if (client[kRunning] === 0 && err.code !== "UND_ERR_INFO" && err.code !== "UND_ERR_SOCKET") {
-        assert(client[kPendingIdx] === client[kRunningIdx]);
-        const requests = client[kQueue].splice(client[kRunningIdx]);
+    function onError(client2, err) {
+      if (client2[kRunning] === 0 && err.code !== "UND_ERR_INFO" && err.code !== "UND_ERR_SOCKET") {
+        assert(client2[kPendingIdx] === client2[kRunningIdx]);
+        const requests = client2[kQueue].splice(client2[kRunningIdx]);
         for (let i = 0; i < requests.length; i++) {
           const request2 = requests[i];
-          util.errorRequest(client, request2, err);
+          util.errorRequest(client2, request2, err);
         }
-        assert(client[kSize] === 0);
+        assert(client2[kSize] === 0);
       }
     }
-    async function connect(client) {
-      assert(!client[kConnecting]);
-      assert(!client[kHTTPContext]);
-      let { host, hostname, protocol, port } = client[kUrl];
+    async function connect2(client2) {
+      assert(!client2[kConnecting]);
+      assert(!client2[kHTTPContext]);
+      let { host, hostname, protocol, port } = client2[kUrl];
       if (hostname[0] === "[") {
         const idx = hostname.indexOf("]");
         assert(idx !== -1);
@@ -7932,7 +7932,7 @@ var require_client = __commonJS({
         assert(net.isIP(ip));
         hostname = ip;
       }
-      client[kConnecting] = true;
+      client2[kConnecting] = true;
       if (channels.beforeConnect.hasSubscribers) {
         channels.beforeConnect.publish({
           connectParams: {
@@ -7940,22 +7940,22 @@ var require_client = __commonJS({
             hostname,
             protocol,
             port,
-            version: client[kHTTPContext]?.version,
-            servername: client[kServerName],
-            localAddress: client[kLocalAddress]
+            version: client2[kHTTPContext]?.version,
+            servername: client2[kServerName],
+            localAddress: client2[kLocalAddress]
           },
-          connector: client[kConnector]
+          connector: client2[kConnector]
         });
       }
       try {
         const socket = await new Promise((resolve, reject) => {
-          client[kConnector]({
+          client2[kConnector]({
             host,
             hostname,
             protocol,
             port,
-            servername: client[kServerName],
-            localAddress: client[kLocalAddress]
+            servername: client2[kServerName],
+            localAddress: client2[kLocalAddress]
           }, (err, socket2) => {
             if (err) {
               reject(err);
@@ -7964,21 +7964,21 @@ var require_client = __commonJS({
             }
           });
         });
-        if (client.destroyed) {
+        if (client2.destroyed) {
           util.destroy(socket.on("error", noop), new ClientDestroyedError());
           return;
         }
         assert(socket);
         try {
-          client[kHTTPContext] = socket.alpnProtocol === "h2" ? await connectH2(client, socket) : await connectH1(client, socket);
+          client2[kHTTPContext] = socket.alpnProtocol === "h2" ? await connectH2(client2, socket) : await connectH1(client2, socket);
         } catch (err) {
           socket.destroy().on("error", noop);
           throw err;
         }
-        client[kConnecting] = false;
+        client2[kConnecting] = false;
         socket[kCounter] = 0;
-        socket[kMaxRequests] = client[kMaxRequests];
-        socket[kClient] = client;
+        socket[kMaxRequests] = client2[kMaxRequests];
+        socket[kClient] = client2;
         socket[kError] = null;
         if (channels.connected.hasSubscribers) {
           channels.connected.publish({
@@ -7987,20 +7987,20 @@ var require_client = __commonJS({
               hostname,
               protocol,
               port,
-              version: client[kHTTPContext]?.version,
-              servername: client[kServerName],
-              localAddress: client[kLocalAddress]
+              version: client2[kHTTPContext]?.version,
+              servername: client2[kServerName],
+              localAddress: client2[kLocalAddress]
             },
-            connector: client[kConnector],
+            connector: client2[kConnector],
             socket
           });
         }
-        client.emit("connect", client[kUrl], [client]);
+        client2.emit("connect", client2[kUrl], [client2]);
       } catch (err) {
-        if (client.destroyed) {
+        if (client2.destroyed) {
           return;
         }
-        client[kConnecting] = false;
+        client2[kConnecting] = false;
         if (channels.connectError.hasSubscribers) {
           channels.connectError.publish({
             connectParams: {
@@ -8008,103 +8008,103 @@ var require_client = __commonJS({
               hostname,
               protocol,
               port,
-              version: client[kHTTPContext]?.version,
-              servername: client[kServerName],
-              localAddress: client[kLocalAddress]
+              version: client2[kHTTPContext]?.version,
+              servername: client2[kServerName],
+              localAddress: client2[kLocalAddress]
             },
-            connector: client[kConnector],
+            connector: client2[kConnector],
             error: err
           });
         }
         if (err.code === "ERR_TLS_CERT_ALTNAME_INVALID") {
-          assert(client[kRunning] === 0);
-          while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === client[kServerName]) {
-            const request2 = client[kQueue][client[kPendingIdx]++];
-            util.errorRequest(client, request2, err);
+          assert(client2[kRunning] === 0);
+          while (client2[kPending] > 0 && client2[kQueue][client2[kPendingIdx]].servername === client2[kServerName]) {
+            const request2 = client2[kQueue][client2[kPendingIdx]++];
+            util.errorRequest(client2, request2, err);
           }
         } else {
-          onError(client, err);
+          onError(client2, err);
         }
-        client.emit("connectionError", client[kUrl], [client], err);
+        client2.emit("connectionError", client2[kUrl], [client2], err);
       }
-      client[kResume]();
+      client2[kResume]();
     }
-    function emitDrain(client) {
-      client[kNeedDrain] = 0;
-      client.emit("drain", client[kUrl], [client]);
+    function emitDrain(client2) {
+      client2[kNeedDrain] = 0;
+      client2.emit("drain", client2[kUrl], [client2]);
     }
-    function resume(client, sync) {
-      if (client[kResuming] === 2) {
+    function resume(client2, sync) {
+      if (client2[kResuming] === 2) {
         return;
       }
-      client[kResuming] = 2;
-      _resume(client, sync);
-      client[kResuming] = 0;
-      if (client[kRunningIdx] > 256) {
-        client[kQueue].splice(0, client[kRunningIdx]);
-        client[kPendingIdx] -= client[kRunningIdx];
-        client[kRunningIdx] = 0;
+      client2[kResuming] = 2;
+      _resume(client2, sync);
+      client2[kResuming] = 0;
+      if (client2[kRunningIdx] > 256) {
+        client2[kQueue].splice(0, client2[kRunningIdx]);
+        client2[kPendingIdx] -= client2[kRunningIdx];
+        client2[kRunningIdx] = 0;
       }
     }
-    function _resume(client, sync) {
+    function _resume(client2, sync) {
       while (true) {
-        if (client.destroyed) {
-          assert(client[kPending] === 0);
+        if (client2.destroyed) {
+          assert(client2[kPending] === 0);
           return;
         }
-        if (client[kClosedResolve] && !client[kSize]) {
-          client[kClosedResolve]();
-          client[kClosedResolve] = null;
+        if (client2[kClosedResolve] && !client2[kSize]) {
+          client2[kClosedResolve]();
+          client2[kClosedResolve] = null;
           return;
         }
-        if (client[kHTTPContext]) {
-          client[kHTTPContext].resume();
+        if (client2[kHTTPContext]) {
+          client2[kHTTPContext].resume();
         }
-        if (client[kBusy]) {
-          client[kNeedDrain] = 2;
-        } else if (client[kNeedDrain] === 2) {
+        if (client2[kBusy]) {
+          client2[kNeedDrain] = 2;
+        } else if (client2[kNeedDrain] === 2) {
           if (sync) {
-            client[kNeedDrain] = 1;
-            queueMicrotask(() => emitDrain(client));
+            client2[kNeedDrain] = 1;
+            queueMicrotask(() => emitDrain(client2));
           } else {
-            emitDrain(client);
+            emitDrain(client2);
           }
           continue;
         }
-        if (client[kPending] === 0) {
+        if (client2[kPending] === 0) {
           return;
         }
-        if (client[kRunning] >= (getPipelining(client) || 1)) {
+        if (client2[kRunning] >= (getPipelining(client2) || 1)) {
           return;
         }
-        const request2 = client[kQueue][client[kPendingIdx]];
-        if (client[kUrl].protocol === "https:" && client[kServerName] !== request2.servername) {
-          if (client[kRunning] > 0) {
+        const request2 = client2[kQueue][client2[kPendingIdx]];
+        if (client2[kUrl].protocol === "https:" && client2[kServerName] !== request2.servername) {
+          if (client2[kRunning] > 0) {
             return;
           }
-          client[kServerName] = request2.servername;
-          client[kHTTPContext]?.destroy(new InformationalError("servername changed"), () => {
-            client[kHTTPContext] = null;
-            resume(client);
+          client2[kServerName] = request2.servername;
+          client2[kHTTPContext]?.destroy(new InformationalError("servername changed"), () => {
+            client2[kHTTPContext] = null;
+            resume(client2);
           });
         }
-        if (client[kConnecting]) {
+        if (client2[kConnecting]) {
           return;
         }
-        if (!client[kHTTPContext]) {
-          connect(client);
+        if (!client2[kHTTPContext]) {
+          connect2(client2);
           return;
         }
-        if (client[kHTTPContext].destroyed) {
+        if (client2[kHTTPContext].destroyed) {
           return;
         }
-        if (client[kHTTPContext].busy(request2)) {
+        if (client2[kHTTPContext].busy(request2)) {
           return;
         }
-        if (!request2.aborted && client[kHTTPContext].write(request2)) {
-          client[kPendingIdx]++;
+        if (!request2.aborted && client2[kHTTPContext].write(request2)) {
+          client2[kPendingIdx]++;
         } else {
-          client[kQueue].splice(client[kPendingIdx], 1);
+          client2[kQueue].splice(client2[kPendingIdx], 1);
         }
       }
     }
@@ -8263,10 +8263,10 @@ var require_pool_base = __commonJS({
         return this[kNeedDrain];
       }
       get [kConnected]() {
-        return this[kClients].filter((client) => client[kConnected]).length;
+        return this[kClients].filter((client2) => client2[kConnected]).length;
       }
       get [kFree]() {
-        return this[kClients].filter((client) => client[kConnected] && !client[kNeedDrain]).length;
+        return this[kClients].filter((client2) => client2[kConnected] && !client2[kNeedDrain]).length;
       }
       get [kPending]() {
         let ret = this[kQueued];
@@ -8323,21 +8323,21 @@ var require_pool_base = __commonJS({
         }
         return !this[kNeedDrain];
       }
-      [kAddClient](client) {
-        client.on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
-        this[kClients].push(client);
+      [kAddClient](client2) {
+        client2.on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
+        this[kClients].push(client2);
         if (this[kNeedDrain]) {
           queueMicrotask(() => {
             if (this[kNeedDrain]) {
-              this[kOnDrain](client[kUrl], [this, client]);
+              this[kOnDrain](client2[kUrl], [this, client2]);
             }
           });
         }
         return this;
       }
-      [kRemoveClient](client) {
-        client.close(() => {
-          const idx = this[kClients].indexOf(client);
+      [kRemoveClient](client2) {
+        client2.close(() => {
+          const idx = this[kClients].indexOf(client2);
           if (idx !== -1) {
             this[kClients].splice(idx, 1);
           }
@@ -8384,7 +8384,7 @@ var require_pool = __commonJS({
       constructor(origin, {
         connections,
         factory = defaultFactory,
-        connect,
+        connect: connect2,
         connectTimeout,
         tls,
         maxCachedSessions,
@@ -8400,25 +8400,25 @@ var require_pool = __commonJS({
         if (typeof factory !== "function") {
           throw new InvalidArgumentError("factory must be a function.");
         }
-        if (connect != null && typeof connect !== "function" && typeof connect !== "object") {
+        if (connect2 != null && typeof connect2 !== "function" && typeof connect2 !== "object") {
           throw new InvalidArgumentError("connect must be a function or an object");
         }
-        if (typeof connect !== "function") {
-          connect = buildConnector({
+        if (typeof connect2 !== "function") {
+          connect2 = buildConnector({
             ...tls,
             maxCachedSessions,
             allowH2,
             socketPath,
             timeout: connectTimeout,
             ...autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
-            ...connect
+            ...connect2
           });
         }
         super(options);
         this[kInterceptors] = options.interceptors?.Pool && Array.isArray(options.interceptors.Pool) ? options.interceptors.Pool : [];
         this[kConnections] = connections || null;
         this[kUrl] = util.parseOrigin(origin);
-        this[kOptions] = { ...util.deepClone(options), connect, allowH2 };
+        this[kOptions] = { ...util.deepClone(options), connect: connect2, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
         this.on("connectionError", (origin2, targets, error2) => {
@@ -8431,9 +8431,9 @@ var require_pool = __commonJS({
         });
       }
       [kGetDispatcher]() {
-        for (const client of this[kClients]) {
-          if (!client[kNeedDrain]) {
-            return client;
+        for (const client2 of this[kClients]) {
+          if (!client2[kNeedDrain]) {
+            return client2;
           }
         }
         if (!this[kConnections] || this[kClients].length < this[kConnections]) {
@@ -8528,8 +8528,8 @@ var require_balanced_pool = __commonJS({
             this._updateBalancedPoolStats();
           }
         });
-        for (const client of this[kClients]) {
-          client[kWeight] = this[kMaxWeightPerServer];
+        for (const client2 of this[kClients]) {
+          client2[kWeight] = this[kMaxWeightPerServer];
         }
         this._updateBalancedPoolStats();
         return this;
@@ -8613,25 +8613,25 @@ var require_agent = __commonJS({
       return opts && opts.connections === 1 ? new Client(origin, opts) : new Pool(origin, opts);
     }
     var Agent = class extends DispatcherBase {
-      constructor({ factory = defaultFactory, maxRedirections = 0, connect, tls, ...options } = {}) {
+      constructor({ factory = defaultFactory, maxRedirections = 0, connect: connect2, tls, ...options } = {}) {
         if (typeof factory !== "function") {
           throw new InvalidArgumentError("factory must be a function.");
         }
-        if (connect != null && typeof connect !== "function" && typeof connect !== "object") {
+        if (connect2 != null && typeof connect2 !== "function" && typeof connect2 !== "object") {
           throw new InvalidArgumentError("connect must be a function or an object");
         }
         if (!Number.isInteger(maxRedirections) || maxRedirections < 0) {
           throw new InvalidArgumentError("maxRedirections must be a positive number");
         }
         super(options);
-        if (connect && typeof connect !== "function") {
-          connect = { ...connect };
+        if (connect2 && typeof connect2 !== "function") {
+          connect2 = { ...connect2 };
         }
         if (tls && typeof tls !== "function") {
           tls = { ...tls };
         }
         this[kInterceptors] = options.interceptors?.Agent && Array.isArray(options.interceptors.Agent) ? options.interceptors.Agent : [createRedirectInterceptor({ maxRedirections })];
-        this[kOptions] = { ...util.deepClone(options), connect, tls };
+        this[kOptions] = { ...util.deepClone(options), connect: connect2, tls };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
@@ -8651,8 +8651,8 @@ var require_agent = __commonJS({
       }
       get [kRunning]() {
         let ret = 0;
-        for (const client of this[kClients].values()) {
-          ret += client[kRunning];
+        for (const client2 of this[kClients].values()) {
+          ret += client2[kRunning];
         }
         return ret;
       }
@@ -8672,16 +8672,16 @@ var require_agent = __commonJS({
       }
       async [kClose]() {
         const closePromises = [];
-        for (const client of this[kClients].values()) {
-          closePromises.push(client.close());
+        for (const client2 of this[kClients].values()) {
+          closePromises.push(client2.close());
         }
         this[kClients].clear();
         await Promise.all(closePromises);
       }
       async [kDestroy](err) {
         const destroyPromises = [];
-        for (const client of this[kClients].values()) {
-          destroyPromises.push(client.destroy(err));
+        for (const client2 of this[kClients].values()) {
+          destroyPromises.push(client2.destroy(err));
         }
         this[kClients].clear();
         await Promise.all(destroyPromises);
@@ -8726,16 +8726,16 @@ var require_proxy_agent = __commonJS({
     }
     var Http1ProxyWrapper = class extends DispatcherBase {
       #client;
-      constructor(proxyUrl, { headers = {}, connect, factory }) {
+      constructor(proxyUrl, { headers = {}, connect: connect2, factory }) {
         super();
         if (!proxyUrl) {
           throw new InvalidArgumentError("Proxy URL is mandatory");
         }
         this[kProxyHeaders] = headers;
         if (factory) {
-          this.#client = factory(proxyUrl, { connect });
+          this.#client = factory(proxyUrl, { connect: connect2 });
         } else {
-          this.#client = new Client(proxyUrl, { connect });
+          this.#client = new Client(proxyUrl, { connect: connect2 });
         }
       }
       [kDispatch](opts, handler) {
@@ -8797,7 +8797,7 @@ var require_proxy_agent = __commonJS({
         } else if (username && password) {
           this[kProxyHeaders]["proxy-authorization"] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:${decodeURIComponent(password)}`).toString("base64")}`;
         }
-        const connect = buildConnector({ ...opts.proxyTls });
+        const connect2 = buildConnector({ ...opts.proxyTls });
         this[kConnectEndpoint] = buildConnector({ ...opts.requestTls });
         const agentFactory = opts.factory || defaultAgentFactory;
         const factory = (origin2, options) => {
@@ -8805,13 +8805,13 @@ var require_proxy_agent = __commonJS({
           if (!this[kTunnelProxy] && protocol2 === "http:" && this[kProxy].protocol === "http:") {
             return new Http1ProxyWrapper(this[kProxy].uri, {
               headers: this[kProxyHeaders],
-              connect,
+              connect: connect2,
               factory: agentFactory
             });
           }
           return agentFactory(origin2, options);
         };
-        this[kClient] = clientFactory(url, { connect });
+        this[kClient] = clientFactory(url, { connect: connect2 });
         this[kAgent] = new Agent({
           ...opts,
           factory,
@@ -10557,10 +10557,10 @@ var require_api_connect = __commonJS({
         }
       }
     };
-    function connect(opts, callback) {
+    function connect2(opts, callback) {
       if (callback === void 0) {
         return new Promise((resolve, reject) => {
-          connect.call(this, opts, (err, data) => {
+          connect2.call(this, opts, (err, data) => {
             return err ? reject(err) : resolve(data);
           });
         });
@@ -10576,7 +10576,7 @@ var require_api_connect = __commonJS({
         queueMicrotask(() => callback(err, { opaque }));
       }
     }
-    module2.exports = connect;
+    module2.exports = connect2;
   }
 });
 
@@ -10843,9 +10843,9 @@ var require_mock_utils = __commonJS({
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
       const { data: { statusCode, data, headers, trailers, error: error2 }, delay, persist } = mockDispatch2;
-      const { timesInvoked, times } = mockDispatch2;
-      mockDispatch2.consumed = !persist && timesInvoked >= times;
-      mockDispatch2.pending = timesInvoked < times;
+      const { timesInvoked, times: times2 } = mockDispatch2;
+      mockDispatch2.consumed = !persist && timesInvoked >= times2;
+      mockDispatch2.pending = timesInvoked < times2;
       if (error2 !== null) {
         deleteMockDispatch(this[kDispatches], key);
         handler.onError(error2);
@@ -11264,14 +11264,14 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path, data: { statusCode }, persist, times: times2, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
             Path: path,
             "Status code": statusCode,
             Persistent: persist ? PERSISTENT : NOT_PERSISTENT,
             Invocations: timesInvoked,
-            Remaining: persist ? Infinity : times - timesInvoked
+            Remaining: persist ? Infinity : times2 - timesInvoked
           })
         );
         this.logger.table(withPrettyHeaders);
@@ -11369,9 +11369,9 @@ var require_mock_agent = __commonJS({
         return this[kOptions] && this[kOptions].connections === 1 ? new MockClient(origin, mockOptions) : new MockPool(origin, mockOptions);
       }
       [kMockAgentGet](origin) {
-        const client = this[kClients].get(origin);
-        if (client) {
-          return client;
+        const client2 = this[kClients].get(origin);
+        if (client2) {
+          return client2;
         }
         if (typeof origin !== "string") {
           const dispatcher = this[kFactory]("http://localhost:9999");
@@ -15060,7 +15060,7 @@ var require_util4 = __commonJS({
           if (encoding === "failure") {
             encoding = "UTF-8";
           }
-          return decode(bytes, encoding);
+          return decode2(bytes, encoding);
         }
         case "ArrayBuffer": {
           const sequence = combineByteSequences(bytes);
@@ -15077,7 +15077,7 @@ var require_util4 = __commonJS({
         }
       }
     }
-    function decode(ioQueue, encoding) {
+    function decode2(ioQueue, encoding) {
       const bytes = combineByteSequences(ioQueue);
       const BOMEncoding = BOMSniffing(bytes);
       let slice = 0;
@@ -17173,12 +17173,12 @@ var require_connection = __commonJS({
       crypto2 = require("node:crypto");
     } catch {
     }
-    function establishWebSocketConnection(url, protocols, client, ws, onEstablish, options) {
+    function establishWebSocketConnection(url, protocols, client2, ws, onEstablish, options) {
       const requestURL = url;
       requestURL.protocol = url.protocol === "ws:" ? "http:" : "https:";
       const request2 = makeRequest({
         urlList: [requestURL],
-        client,
+        client: client2,
         serviceWorkers: "none",
         referrer: "no-referrer",
         mode: "websocket",
@@ -17965,11 +17965,11 @@ var require_websocket = __commonJS({
           throw new DOMException("Invalid Sec-WebSocket-Protocol value", "SyntaxError");
         }
         this[kWebSocketURL] = new URL(urlRecord.href);
-        const client = environmentSettingsObject.settingsObject;
+        const client2 = environmentSettingsObject.settingsObject;
         this[kController] = establishWebSocketConnection(
           urlRecord,
           protocols,
-          client,
+          client2,
           this,
           (response, extensions) => this.#onConnectionEstablished(response, extensions),
           options
@@ -19204,13 +19204,13 @@ var require_identity = __commonJS({
 var require_visit = __commonJS({
   "node_modules/yaml/dist/visit.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var BREAK = /* @__PURE__ */ Symbol("break visit");
     var SKIP = /* @__PURE__ */ Symbol("skip children");
     var REMOVE = /* @__PURE__ */ Symbol("remove node");
     function visit(node, visitor) {
       const visitor_ = initVisitor(visitor);
-      if (identity.isDocument(node)) {
+      if (identity2.isDocument(node)) {
         const cd = visit_(null, node.contents, visitor_, Object.freeze([node]));
         if (cd === REMOVE)
           node.contents = null;
@@ -19222,12 +19222,12 @@ var require_visit = __commonJS({
     visit.REMOVE = REMOVE;
     function visit_(key, node, visitor, path) {
       const ctrl = callVisitor(key, node, visitor, path);
-      if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
+      if (identity2.isNode(ctrl) || identity2.isPair(ctrl)) {
         replaceNode(key, path, ctrl);
         return visit_(key, ctrl, visitor, path);
       }
       if (typeof ctrl !== "symbol") {
-        if (identity.isCollection(node)) {
+        if (identity2.isCollection(node)) {
           path = Object.freeze(path.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
             const ci = visit_(i, node.items[i], visitor, path);
@@ -19240,7 +19240,7 @@ var require_visit = __commonJS({
               i -= 1;
             }
           }
-        } else if (identity.isPair(node)) {
+        } else if (identity2.isPair(node)) {
           path = Object.freeze(path.concat(node));
           const ck = visit_("key", node.key, visitor, path);
           if (ck === BREAK)
@@ -19258,7 +19258,7 @@ var require_visit = __commonJS({
     }
     async function visitAsync(node, visitor) {
       const visitor_ = initVisitor(visitor);
-      if (identity.isDocument(node)) {
+      if (identity2.isDocument(node)) {
         const cd = await visitAsync_(null, node.contents, visitor_, Object.freeze([node]));
         if (cd === REMOVE)
           node.contents = null;
@@ -19270,12 +19270,12 @@ var require_visit = __commonJS({
     visitAsync.REMOVE = REMOVE;
     async function visitAsync_(key, node, visitor, path) {
       const ctrl = await callVisitor(key, node, visitor, path);
-      if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
+      if (identity2.isNode(ctrl) || identity2.isPair(ctrl)) {
         replaceNode(key, path, ctrl);
         return visitAsync_(key, ctrl, visitor, path);
       }
       if (typeof ctrl !== "symbol") {
-        if (identity.isCollection(node)) {
+        if (identity2.isCollection(node)) {
           path = Object.freeze(path.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
             const ci = await visitAsync_(i, node.items[i], visitor, path);
@@ -19288,7 +19288,7 @@ var require_visit = __commonJS({
               i -= 1;
             }
           }
-        } else if (identity.isPair(node)) {
+        } else if (identity2.isPair(node)) {
           path = Object.freeze(path.concat(node));
           const ck = await visitAsync_("key", node.key, visitor, path);
           if (ck === BREAK)
@@ -19325,31 +19325,31 @@ var require_visit = __commonJS({
     function callVisitor(key, node, visitor, path) {
       if (typeof visitor === "function")
         return visitor(key, node, path);
-      if (identity.isMap(node))
+      if (identity2.isMap(node))
         return visitor.Map?.(key, node, path);
-      if (identity.isSeq(node))
+      if (identity2.isSeq(node))
         return visitor.Seq?.(key, node, path);
-      if (identity.isPair(node))
+      if (identity2.isPair(node))
         return visitor.Pair?.(key, node, path);
-      if (identity.isScalar(node))
+      if (identity2.isScalar(node))
         return visitor.Scalar?.(key, node, path);
-      if (identity.isAlias(node))
+      if (identity2.isAlias(node))
         return visitor.Alias?.(key, node, path);
       return void 0;
     }
     function replaceNode(key, path, node) {
       const parent = path[path.length - 1];
-      if (identity.isCollection(parent)) {
+      if (identity2.isCollection(parent)) {
         parent.items[key] = node;
-      } else if (identity.isPair(parent)) {
+      } else if (identity2.isPair(parent)) {
         if (key === "key")
           parent.key = node;
         else
           parent.value = node;
-      } else if (identity.isDocument(parent)) {
+      } else if (identity2.isDocument(parent)) {
         parent.contents = node;
       } else {
-        const pt = identity.isAlias(parent) ? "alias" : "scalar";
+        const pt = identity2.isAlias(parent) ? "alias" : "scalar";
         throw new Error(`Cannot replace node with ${pt} parent`);
       }
     }
@@ -19362,7 +19362,7 @@ var require_visit = __commonJS({
 var require_directives = __commonJS({
   "node_modules/yaml/dist/doc/directives.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var visit = require_visit();
     var escapeChars = {
       "!": "%21",
@@ -19505,10 +19505,10 @@ var require_directives = __commonJS({
         const lines = this.yaml.explicit ? [`%YAML ${this.yaml.version || "1.2"}`] : [];
         const tagEntries = Object.entries(this.tags);
         let tagNames;
-        if (doc && tagEntries.length > 0 && identity.isNode(doc.contents)) {
+        if (doc && tagEntries.length > 0 && identity2.isNode(doc.contents)) {
           const tags = {};
           visit.visit(doc.contents, (_key, node) => {
-            if (identity.isNode(node) && node.tag)
+            if (identity2.isNode(node) && node.tag)
               tags[node.tag] = true;
           });
           tagNames = Object.keys(tags);
@@ -19533,7 +19533,7 @@ var require_directives = __commonJS({
 var require_anchors = __commonJS({
   "node_modules/yaml/dist/doc/anchors.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var visit = require_visit();
     function anchorIsValid(anchor) {
       if (/[\x00-\x19\s,[\]{}]/.test(anchor)) {
@@ -19580,7 +19580,7 @@ var require_anchors = __commonJS({
         setAnchors: () => {
           for (const source of aliasObjects) {
             const ref = sourceObjects.get(source);
-            if (typeof ref === "object" && ref.anchor && (identity.isScalar(ref.node) || identity.isCollection(ref.node))) {
+            if (typeof ref === "object" && ref.anchor && (identity2.isScalar(ref.node) || identity2.isCollection(ref.node))) {
               ref.node.anchor = ref.anchor;
             } else {
               const error2 = new Error("Failed to resolve repeated object (this should not happen)");
@@ -19653,12 +19653,12 @@ var require_applyReviver = __commonJS({
 var require_toJS = __commonJS({
   "node_modules/yaml/dist/nodes/toJS.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     function toJS(value, arg, ctx) {
       if (Array.isArray(value))
         return value.map((v, i) => toJS(v, String(i), ctx));
       if (value && typeof value.toJSON === "function") {
-        if (!ctx || !identity.hasAnchor(value))
+        if (!ctx || !identity2.hasAnchor(value))
           return value.toJSON(arg, ctx);
         const data = { aliasCount: 0, count: 1, res: void 0 };
         ctx.anchors.set(value, data);
@@ -19684,11 +19684,11 @@ var require_Node = __commonJS({
   "node_modules/yaml/dist/nodes/Node.js"(exports2) {
     "use strict";
     var applyReviver = require_applyReviver();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var toJS = require_toJS();
     var NodeBase = class {
       constructor(type) {
-        Object.defineProperty(this, identity.NODE_TYPE, { value: type });
+        Object.defineProperty(this, identity2.NODE_TYPE, { value: type });
       }
       /** Create a copy of this node.  */
       clone() {
@@ -19699,7 +19699,7 @@ var require_Node = __commonJS({
       }
       /** A plain JavaScript representation of this node. */
       toJS(doc, { mapAsMap, maxAliasCount, onAnchor, reviver } = {}) {
-        if (!identity.isDocument(doc))
+        if (!identity2.isDocument(doc))
           throw new TypeError("A document argument is required");
         const ctx = {
           anchors: /* @__PURE__ */ new Map(),
@@ -19726,12 +19726,12 @@ var require_Alias = __commonJS({
     "use strict";
     var anchors = require_anchors();
     var visit = require_visit();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Node = require_Node();
     var toJS = require_toJS();
     var Alias = class extends Node.NodeBase {
       constructor(source) {
-        super(identity.ALIAS);
+        super(identity2.ALIAS);
         this.source = source;
         Object.defineProperty(this, "tag", {
           set() {
@@ -19753,7 +19753,7 @@ var require_Alias = __commonJS({
           nodes = [];
           visit.visit(doc, {
             Node: (_key, node) => {
-              if (identity.isAlias(node) || identity.hasAnchor(node))
+              if (identity2.isAlias(node) || identity2.hasAnchor(node))
                 nodes.push(node);
             }
           });
@@ -19815,11 +19815,11 @@ var require_Alias = __commonJS({
       }
     };
     function getAliasCount(doc, node, anchors2) {
-      if (identity.isAlias(node)) {
+      if (identity2.isAlias(node)) {
         const source = node.resolve(doc);
         const anchor = anchors2 && source && anchors2.get(source);
         return anchor ? anchor.count * anchor.aliasCount : 0;
-      } else if (identity.isCollection(node)) {
+      } else if (identity2.isCollection(node)) {
         let count = 0;
         for (const item of node.items) {
           const c = getAliasCount(doc, item, anchors2);
@@ -19827,7 +19827,7 @@ var require_Alias = __commonJS({
             count = c;
         }
         return count;
-      } else if (identity.isPair(node)) {
+      } else if (identity2.isPair(node)) {
         const kc = getAliasCount(doc, node.key, anchors2);
         const vc = getAliasCount(doc, node.value, anchors2);
         return Math.max(kc, vc);
@@ -19842,13 +19842,13 @@ var require_Alias = __commonJS({
 var require_Scalar = __commonJS({
   "node_modules/yaml/dist/nodes/Scalar.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Node = require_Node();
     var toJS = require_toJS();
     var isScalarValue = (value) => !value || typeof value !== "function" && typeof value !== "object";
     var Scalar = class extends Node.NodeBase {
       constructor(value) {
-        super(identity.SCALAR);
+        super(identity2.SCALAR);
         this.value = value;
       }
       toJSON(arg, ctx) {
@@ -19873,7 +19873,7 @@ var require_createNode = __commonJS({
   "node_modules/yaml/dist/doc/createNode.js"(exports2) {
     "use strict";
     var Alias = require_Alias();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var defaultTagPrefix = "tag:yaml.org,2002:";
     function findTagObject(value, tagName, tags) {
@@ -19887,12 +19887,12 @@ var require_createNode = __commonJS({
       return tags.find((t) => t.identify?.(value) && !t.format);
     }
     function createNode(value, tagName, ctx) {
-      if (identity.isDocument(value))
+      if (identity2.isDocument(value))
         value = value.contents;
-      if (identity.isNode(value))
+      if (identity2.isNode(value))
         return value;
-      if (identity.isPair(value)) {
-        const map = ctx.schema[identity.MAP].createNode?.(ctx.schema, null, ctx);
+      if (identity2.isPair(value)) {
+        const map = ctx.schema[identity2.MAP].createNode?.(ctx.schema, null, ctx);
         map.items.push(value);
         return map;
       }
@@ -19924,7 +19924,7 @@ var require_createNode = __commonJS({
             ref.node = node2;
           return node2;
         }
-        tagObj = value instanceof Map ? schema[identity.MAP] : Symbol.iterator in Object(value) ? schema[identity.SEQ] : schema[identity.MAP];
+        tagObj = value instanceof Map ? schema[identity2.MAP] : Symbol.iterator in Object(value) ? schema[identity2.SEQ] : schema[identity2.MAP];
       }
       if (onTagObj) {
         onTagObj(tagObj);
@@ -19948,7 +19948,7 @@ var require_Collection = __commonJS({
   "node_modules/yaml/dist/nodes/Collection.js"(exports2) {
     "use strict";
     var createNode = require_createNode();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Node = require_Node();
     function collectionFromPath(schema, path, value) {
       let v = value;
@@ -19992,7 +19992,7 @@ var require_Collection = __commonJS({
         const copy = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
         if (schema)
           copy.schema = schema;
-        copy.items = copy.items.map((it) => identity.isNode(it) || identity.isPair(it) ? it.clone(schema) : it);
+        copy.items = copy.items.map((it) => identity2.isNode(it) || identity2.isPair(it) ? it.clone(schema) : it);
         if (this.range)
           copy.range = this.range.slice();
         return copy;
@@ -20008,7 +20008,7 @@ var require_Collection = __commonJS({
         else {
           const [key, ...rest] = path;
           const node = this.get(key, true);
-          if (identity.isCollection(node))
+          if (identity2.isCollection(node))
             node.addIn(rest, value);
           else if (node === void 0 && this.schema)
             this.set(key, collectionFromPath(this.schema, rest, value));
@@ -20025,7 +20025,7 @@ var require_Collection = __commonJS({
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
-        if (identity.isCollection(node))
+        if (identity2.isCollection(node))
           return node.deleteIn(rest);
         else
           throw new Error(`Expected YAML collection at ${key}. Remaining path: ${rest}`);
@@ -20039,16 +20039,16 @@ var require_Collection = __commonJS({
         const [key, ...rest] = path;
         const node = this.get(key, true);
         if (rest.length === 0)
-          return !keepScalar && identity.isScalar(node) ? node.value : node;
+          return !keepScalar && identity2.isScalar(node) ? node.value : node;
         else
-          return identity.isCollection(node) ? node.getIn(rest, keepScalar) : void 0;
+          return identity2.isCollection(node) ? node.getIn(rest, keepScalar) : void 0;
       }
       hasAllNullValues(allowScalar) {
         return this.items.every((node) => {
-          if (!identity.isPair(node))
+          if (!identity2.isPair(node))
             return false;
           const n = node.value;
-          return n == null || allowScalar && identity.isScalar(n) && n.value == null && !n.commentBefore && !n.comment && !n.tag;
+          return n == null || allowScalar && identity2.isScalar(n) && n.value == null && !n.commentBefore && !n.comment && !n.tag;
         });
       }
       /**
@@ -20059,7 +20059,7 @@ var require_Collection = __commonJS({
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
-        return identity.isCollection(node) ? node.hasIn(rest) : false;
+        return identity2.isCollection(node) ? node.hasIn(rest) : false;
       }
       /**
        * Sets a value in this collection. For `!!set`, `value` needs to be a
@@ -20071,7 +20071,7 @@ var require_Collection = __commonJS({
           this.set(key, value);
         } else {
           const node = this.get(key, true);
-          if (identity.isCollection(node))
+          if (identity2.isCollection(node))
             node.setIn(rest, value);
           else if (node === void 0 && this.schema)
             this.set(key, collectionFromPath(this.schema, rest, value));
@@ -20527,7 +20527,7 @@ var require_stringify = __commonJS({
   "node_modules/yaml/dist/stringify/stringify.js"(exports2) {
     "use strict";
     var anchors = require_anchors();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var stringifyComment = require_stringifyComment();
     var stringifyString = require_stringifyString();
     function createStringifyContext(doc, options) {
@@ -20580,7 +20580,7 @@ var require_stringify = __commonJS({
       }
       let tagObj = void 0;
       let obj;
-      if (identity.isScalar(item)) {
+      if (identity2.isScalar(item)) {
         obj = item.value;
         let match = tags.filter((t) => t.identify?.(obj));
         if (match.length > 1) {
@@ -20603,7 +20603,7 @@ var require_stringify = __commonJS({
       if (!doc.directives)
         return "";
       const props = [];
-      const anchor = (identity.isScalar(node) || identity.isCollection(node)) && node.anchor;
+      const anchor = (identity2.isScalar(node) || identity2.isCollection(node)) && node.anchor;
       if (anchor && anchors.anchorIsValid(anchor)) {
         anchors$1.add(anchor);
         props.push(`&${anchor}`);
@@ -20614,9 +20614,9 @@ var require_stringify = __commonJS({
       return props.join(" ");
     }
     function stringify(item, ctx, onComment, onChompKeep) {
-      if (identity.isPair(item))
+      if (identity2.isPair(item))
         return item.toString(ctx, onComment, onChompKeep);
-      if (identity.isAlias(item)) {
+      if (identity2.isAlias(item)) {
         if (ctx.doc.directives)
           return item.toString(ctx);
         if (ctx.resolvedAliases?.has(item)) {
@@ -20630,15 +20630,15 @@ var require_stringify = __commonJS({
         }
       }
       let tagObj = void 0;
-      const node = identity.isNode(item) ? item : ctx.doc.createNode(item, { onTagObj: (o) => tagObj = o });
+      const node = identity2.isNode(item) ? item : ctx.doc.createNode(item, { onTagObj: (o) => tagObj = o });
       tagObj ?? (tagObj = getTagObject(ctx.doc.schema.tags, node));
       const props = stringifyProps(node, tagObj, ctx);
       if (props.length > 0)
         ctx.indentAtStart = (ctx.indentAtStart ?? 0) + props.length + 1;
-      const str = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
+      const str = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity2.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
       if (!props)
         return str;
-      return identity.isScalar(node) || str[0] === "{" || str[0] === "[" ? `${props} ${str}` : `${props}
+      return identity2.isScalar(node) || str[0] === "{" || str[0] === "[" ? `${props} ${str}` : `${props}
 ${ctx.indent}${str}`;
     }
     exports2.createStringifyContext = createStringifyContext;
@@ -20650,23 +20650,23 @@ ${ctx.indent}${str}`;
 var require_stringifyPair = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyPair.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
       const { allNullValues, doc, indent, indentStep, options: { commentString, indentSeq, simpleKeys } } = ctx;
-      let keyComment = identity.isNode(key) && key.comment || null;
+      let keyComment = identity2.isNode(key) && key.comment || null;
       if (simpleKeys) {
         if (keyComment) {
           throw new Error("With simple keys, key nodes cannot have comments");
         }
-        if (identity.isCollection(key) || !identity.isNode(key) && typeof key === "object") {
+        if (identity2.isCollection(key) || !identity2.isNode(key) && typeof key === "object") {
           const msg = "With simple keys, collection cannot be used as a key value";
           throw new Error(msg);
         }
       }
-      let explicitKey = !simpleKeys && (!key || keyComment && value == null && !ctx.inFlow || identity.isCollection(key) || (identity.isScalar(key) ? key.type === Scalar.Scalar.BLOCK_FOLDED || key.type === Scalar.Scalar.BLOCK_LITERAL : typeof key === "object"));
+      let explicitKey = !simpleKeys && (!key || keyComment && value == null && !ctx.inFlow || identity2.isCollection(key) || (identity2.isScalar(key) ? key.type === Scalar.Scalar.BLOCK_FOLDED || key.type === Scalar.Scalar.BLOCK_LITERAL : typeof key === "object"));
       ctx = Object.assign({}, ctx, {
         allNullValues: false,
         implicitKey: !explicitKey && (simpleKeys || !allNullValues),
@@ -20707,7 +20707,7 @@ ${indent}:`;
           str += stringifyComment.lineComment(str, ctx.indent, commentString(keyComment));
       }
       let vsb, vcb, valueComment;
-      if (identity.isNode(value)) {
+      if (identity2.isNode(value)) {
         vsb = !!value.spaceBefore;
         vcb = value.commentBefore;
         valueComment = value.comment;
@@ -20719,10 +20719,10 @@ ${indent}:`;
           value = doc.createNode(value);
       }
       ctx.implicitKey = false;
-      if (!explicitKey && !keyComment && identity.isScalar(value))
+      if (!explicitKey && !keyComment && identity2.isScalar(value))
         ctx.indentAtStart = str.length + 1;
       chompKeep = false;
-      if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity.isSeq(value) && !value.flow && !value.tag && !value.anchor) {
+      if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity2.isSeq(value) && !value.flow && !value.tag && !value.anchor) {
         ctx.indent = ctx.indent.substring(2);
       }
       let valueCommentDone = false;
@@ -20742,7 +20742,7 @@ ${stringifyComment.indentComment(cs, ctx.indent)}`;
           ws += `
 ${ctx.indent}`;
         }
-      } else if (!explicitKey && identity.isCollection(value)) {
+      } else if (!explicitKey && identity2.isCollection(value)) {
         const vs0 = valueStr[0];
         const nl0 = valueStr.indexOf("\n");
         const hasNewline = nl0 !== -1;
@@ -20805,7 +20805,7 @@ var require_log = __commonJS({
 var require_merge = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/merge.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var MERGE_KEY = "<<";
     var merge = {
@@ -20818,10 +20818,10 @@ var require_merge = __commonJS({
       }),
       stringify: () => MERGE_KEY
     };
-    var isMergeKey = (ctx, key) => (merge.identify(key) || identity.isScalar(key) && (!key.type || key.type === Scalar.Scalar.PLAIN) && merge.identify(key.value)) && ctx?.doc.schema.tags.some((tag) => tag.tag === merge.tag && tag.default);
+    var isMergeKey = (ctx, key) => (merge.identify(key) || identity2.isScalar(key) && (!key.type || key.type === Scalar.Scalar.PLAIN) && merge.identify(key.value)) && ctx?.doc.schema.tags.some((tag) => tag.tag === merge.tag && tag.default);
     function addMergeToJSMap(ctx, map, value) {
       const source = resolveAliasValue(ctx, value);
-      if (identity.isSeq(source))
+      if (identity2.isSeq(source))
         for (const it of source.items)
           mergeValue(ctx, map, it);
       else if (Array.isArray(source))
@@ -20832,7 +20832,7 @@ var require_merge = __commonJS({
     }
     function mergeValue(ctx, map, value) {
       const source = resolveAliasValue(ctx, value);
-      if (!identity.isMap(source))
+      if (!identity2.isMap(source))
         throw new Error("Merge sources must be maps or map aliases");
       const srcMap = source.toJSON(null, ctx, Map);
       for (const [key, value2] of srcMap) {
@@ -20853,7 +20853,7 @@ var require_merge = __commonJS({
       return map;
     }
     function resolveAliasValue(ctx, value) {
-      return ctx && identity.isAlias(value) ? value.resolve(ctx.doc, ctx) : value;
+      return ctx && identity2.isAlias(value) ? value.resolve(ctx.doc, ctx) : value;
     }
     exports2.addMergeToJSMap = addMergeToJSMap;
     exports2.isMergeKey = isMergeKey;
@@ -20868,10 +20868,10 @@ var require_addPairToJSMap = __commonJS({
     var log = require_log();
     var merge = require_merge();
     var stringify = require_stringify();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var toJS = require_toJS();
     function addPairToJSMap(ctx, map, { key, value }) {
-      if (identity.isNode(key) && key.addToJSMap)
+      if (identity2.isNode(key) && key.addToJSMap)
         key.addToJSMap(ctx, map, value);
       else if (merge.isMergeKey(ctx, key))
         merge.addMergeToJSMap(ctx, map, value);
@@ -20902,7 +20902,7 @@ var require_addPairToJSMap = __commonJS({
         return "";
       if (typeof jsKey !== "object")
         return String(jsKey);
-      if (identity.isNode(key) && ctx?.doc) {
+      if (identity2.isNode(key) && ctx?.doc) {
         const strCtx = stringify.createStringifyContext(ctx.doc, {});
         strCtx.anchors = /* @__PURE__ */ new Set();
         for (const node of ctx.anchors.keys())
@@ -20932,7 +20932,7 @@ var require_Pair = __commonJS({
     var createNode = require_createNode();
     var stringifyPair = require_stringifyPair();
     var addPairToJSMap = require_addPairToJSMap();
-    var identity = require_identity();
+    var identity2 = require_identity();
     function createPair(key, value, ctx) {
       const k = createNode.createNode(key, void 0, ctx);
       const v = createNode.createNode(value, void 0, ctx);
@@ -20940,15 +20940,15 @@ var require_Pair = __commonJS({
     }
     var Pair = class _Pair {
       constructor(key, value = null) {
-        Object.defineProperty(this, identity.NODE_TYPE, { value: identity.PAIR });
+        Object.defineProperty(this, identity2.NODE_TYPE, { value: identity2.PAIR });
         this.key = key;
         this.value = value;
       }
       clone(schema) {
         let { key, value } = this;
-        if (identity.isNode(key))
+        if (identity2.isNode(key))
           key = key.clone(schema);
-        if (identity.isNode(value))
+        if (identity2.isNode(value))
           value = value.clone(schema);
         return new _Pair(key, value);
       }
@@ -20969,7 +20969,7 @@ var require_Pair = __commonJS({
 var require_stringifyCollection = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyCollection.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyCollection(collection, ctx, options) {
@@ -20985,14 +20985,14 @@ var require_stringifyCollection = __commonJS({
       for (let i = 0; i < items.length; ++i) {
         const item = items[i];
         let comment2 = null;
-        if (identity.isNode(item)) {
+        if (identity2.isNode(item)) {
           if (!chompKeep && item.spaceBefore)
             lines.push("");
           addCommentBefore(ctx, lines, item.commentBefore, chompKeep);
           if (item.comment)
             comment2 = item.comment;
-        } else if (identity.isPair(item)) {
-          const ik = identity.isNode(item.key) ? item.key : null;
+        } else if (identity2.isPair(item)) {
+          const ik = identity2.isNode(item.key) ? item.key : null;
           if (ik) {
             if (!chompKeep && ik.spaceBefore)
               lines.push("");
@@ -21040,14 +21040,14 @@ ${indent}${line}` : "\n";
       for (let i = 0; i < items.length; ++i) {
         const item = items[i];
         let comment = null;
-        if (identity.isNode(item)) {
+        if (identity2.isNode(item)) {
           if (item.spaceBefore)
             lines.push("");
           addCommentBefore(ctx, lines, item.commentBefore, false);
           if (item.comment)
             comment = item.comment;
-        } else if (identity.isPair(item)) {
-          const ik = identity.isNode(item.key) ? item.key : null;
+        } else if (identity2.isPair(item)) {
+          const ik = identity2.isNode(item.key) ? item.key : null;
           if (ik) {
             if (ik.spaceBefore)
               lines.push("");
@@ -21055,7 +21055,7 @@ ${indent}${line}` : "\n";
             if (ik.comment)
               reqNewline = true;
           }
-          const iv = identity.isNode(item.value) ? item.value : null;
+          const iv = identity2.isNode(item.value) ? item.value : null;
           if (iv) {
             if (iv.comment)
               comment = iv.comment;
@@ -21123,16 +21123,16 @@ var require_YAMLMap = __commonJS({
     var stringifyCollection = require_stringifyCollection();
     var addPairToJSMap = require_addPairToJSMap();
     var Collection = require_Collection();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var Scalar = require_Scalar();
     function findPair(items, key) {
-      const k = identity.isScalar(key) ? key.value : key;
+      const k = identity2.isScalar(key) ? key.value : key;
       for (const it of items) {
-        if (identity.isPair(it)) {
+        if (identity2.isPair(it)) {
           if (it.key === key || it.key === k)
             return it;
-          if (identity.isScalar(it.key) && it.key.value === k)
+          if (identity2.isScalar(it.key) && it.key.value === k)
             return it;
         }
       }
@@ -21143,7 +21143,7 @@ var require_YAMLMap = __commonJS({
         return "tag:yaml.org,2002:map";
       }
       constructor(schema) {
-        super(identity.MAP, schema);
+        super(identity2.MAP, schema);
         this.items = [];
       }
       /**
@@ -21181,7 +21181,7 @@ var require_YAMLMap = __commonJS({
        */
       add(pair, overwrite) {
         let _pair;
-        if (identity.isPair(pair))
+        if (identity2.isPair(pair))
           _pair = pair;
         else if (!pair || typeof pair !== "object" || !("key" in pair)) {
           _pair = new Pair.Pair(pair, pair?.value);
@@ -21192,7 +21192,7 @@ var require_YAMLMap = __commonJS({
         if (prev) {
           if (!overwrite)
             throw new Error(`Key ${_pair.key} already set`);
-          if (identity.isScalar(prev.value) && Scalar.isScalarValue(_pair.value))
+          if (identity2.isScalar(prev.value) && Scalar.isScalarValue(_pair.value))
             prev.value.value = _pair.value;
           else
             prev.value = _pair.value;
@@ -21216,7 +21216,7 @@ var require_YAMLMap = __commonJS({
       get(key, keepScalar) {
         const it = findPair(this.items, key);
         const node = it?.value;
-        return (!keepScalar && identity.isScalar(node) ? node.value : node) ?? void 0;
+        return (!keepScalar && identity2.isScalar(node) ? node.value : node) ?? void 0;
       }
       has(key) {
         return !!findPair(this.items, key);
@@ -21241,7 +21241,7 @@ var require_YAMLMap = __commonJS({
         if (!ctx)
           return JSON.stringify(this);
         for (const item of this.items) {
-          if (!identity.isPair(item))
+          if (!identity2.isPair(item))
             throw new Error(`Map items must all be pairs; found ${JSON.stringify(item)} instead`);
         }
         if (!ctx.allNullValues && this.hasAllNullValues(false))
@@ -21264,7 +21264,7 @@ var require_YAMLMap = __commonJS({
 var require_map = __commonJS({
   "node_modules/yaml/dist/schema/common/map.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var YAMLMap = require_YAMLMap();
     var map = {
       collection: "map",
@@ -21272,7 +21272,7 @@ var require_map = __commonJS({
       nodeClass: YAMLMap.YAMLMap,
       tag: "tag:yaml.org,2002:map",
       resolve(map2, onError) {
-        if (!identity.isMap(map2))
+        if (!identity2.isMap(map2))
           onError("Expected a mapping for this tag");
         return map2;
       },
@@ -21289,7 +21289,7 @@ var require_YAMLSeq = __commonJS({
     var createNode = require_createNode();
     var stringifyCollection = require_stringifyCollection();
     var Collection = require_Collection();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var toJS = require_toJS();
     var YAMLSeq = class extends Collection.Collection {
@@ -21297,7 +21297,7 @@ var require_YAMLSeq = __commonJS({
         return "tag:yaml.org,2002:seq";
       }
       constructor(schema) {
-        super(identity.SEQ, schema);
+        super(identity2.SEQ, schema);
         this.items = [];
       }
       add(value) {
@@ -21323,7 +21323,7 @@ var require_YAMLSeq = __commonJS({
         if (typeof idx !== "number")
           return void 0;
         const it = this.items[idx];
-        return !keepScalar && identity.isScalar(it) ? it.value : it;
+        return !keepScalar && identity2.isScalar(it) ? it.value : it;
       }
       /**
        * Checks if the collection includes a value with the key `key`.
@@ -21347,7 +21347,7 @@ var require_YAMLSeq = __commonJS({
         if (typeof idx !== "number")
           throw new Error(`Expected a valid index, not ${key}.`);
         const prev = this.items[idx];
-        if (identity.isScalar(prev) && Scalar.isScalarValue(value))
+        if (identity2.isScalar(prev) && Scalar.isScalarValue(value))
           prev.value = value;
         else
           this.items[idx] = value;
@@ -21389,7 +21389,7 @@ var require_YAMLSeq = __commonJS({
       }
     };
     function asItemIndex(key) {
-      let idx = identity.isScalar(key) ? key.value : key;
+      let idx = identity2.isScalar(key) ? key.value : key;
       if (idx && typeof idx === "string")
         idx = Number(idx);
       return typeof idx === "number" && Number.isInteger(idx) && idx >= 0 ? idx : null;
@@ -21402,7 +21402,7 @@ var require_YAMLSeq = __commonJS({
 var require_seq = __commonJS({
   "node_modules/yaml/dist/schema/common/seq.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var YAMLSeq = require_YAMLSeq();
     var seq = {
       collection: "seq",
@@ -21410,7 +21410,7 @@ var require_seq = __commonJS({
       nodeClass: YAMLSeq.YAMLSeq,
       tag: "tag:yaml.org,2002:seq",
       resolve(seq2, onError) {
-        if (!identity.isSeq(seq2))
+        if (!identity2.isSeq(seq2))
           onError("Expected a sequence for this tag");
         return seq2;
       },
@@ -21764,17 +21764,17 @@ var require_binary = __commonJS({
 var require_pairs = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/pairs.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var Scalar = require_Scalar();
     var YAMLSeq = require_YAMLSeq();
     function resolvePairs(seq, onError) {
-      if (identity.isSeq(seq)) {
+      if (identity2.isSeq(seq)) {
         for (let i = 0; i < seq.items.length; ++i) {
           let item = seq.items[i];
-          if (identity.isPair(item))
+          if (identity2.isPair(item))
             continue;
-          else if (identity.isMap(item)) {
+          else if (identity2.isMap(item)) {
             if (item.items.length > 1)
               onError("Each pair must have its own sequence indicator");
             const pair = item.items[0] || new Pair.Pair(new Scalar.Scalar(null));
@@ -21788,7 +21788,7 @@ ${cn.comment}` : item.comment;
             }
             item = pair;
           }
-          seq.items[i] = identity.isPair(item) ? item : new Pair.Pair(item);
+          seq.items[i] = identity2.isPair(item) ? item : new Pair.Pair(item);
         }
       } else
         onError("Expected a sequence for this tag");
@@ -21842,7 +21842,7 @@ ${cn.comment}` : item.comment;
 var require_omap = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/omap.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var toJS = require_toJS();
     var YAMLMap = require_YAMLMap();
     var YAMLSeq = require_YAMLSeq();
@@ -21869,7 +21869,7 @@ var require_omap = __commonJS({
           ctx.onCreate(map);
         for (const pair of this.items) {
           let key, value;
-          if (identity.isPair(pair)) {
+          if (identity2.isPair(pair)) {
             key = toJS.toJS(pair.key, "", ctx);
             value = toJS.toJS(pair.value, key, ctx);
           } else {
@@ -21899,7 +21899,7 @@ var require_omap = __commonJS({
         const pairs$1 = pairs.resolvePairs(seq, onError);
         const seenKeys = [];
         for (const { key } of pairs$1.items) {
-          if (identity.isScalar(key)) {
+          if (identity2.isScalar(key)) {
             if (seenKeys.includes(key.value)) {
               onError(`Ordered maps must not include duplicate keys: ${key.value}`);
             } else {
@@ -22080,7 +22080,7 @@ var require_int2 = __commonJS({
 var require_set = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/set.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var YAMLMap = require_YAMLMap();
     var YAMLSet = class _YAMLSet extends YAMLMap.YAMLMap {
@@ -22090,7 +22090,7 @@ var require_set = __commonJS({
       }
       add(key) {
         let pair;
-        if (identity.isPair(key))
+        if (identity2.isPair(key))
           pair = key;
         else if (key && typeof key === "object" && "key" in key && "value" in key && key.value === null)
           pair = new Pair.Pair(key.key, null);
@@ -22106,7 +22106,7 @@ var require_set = __commonJS({
        */
       get(key, keepPair) {
         const pair = YAMLMap.findPair(this.items, key);
-        return !keepPair && identity.isPair(pair) ? identity.isScalar(pair.key) ? pair.key.value : pair.key : pair;
+        return !keepPair && identity2.isPair(pair) ? identity2.isScalar(pair.key) ? pair.key.value : pair.key : pair;
       }
       set(key, value) {
         if (typeof value !== "boolean")
@@ -22150,7 +22150,7 @@ var require_set = __commonJS({
       tag: "tag:yaml.org,2002:set",
       createNode: (schema, iterable, ctx) => YAMLSet.from(schema, iterable, ctx),
       resolve(map, onError) {
-        if (identity.isMap(map)) {
+        if (identity2.isMap(map)) {
           if (map.hasAllNullValues(true))
             return Object.assign(new YAMLSet(), map);
           else
@@ -22395,7 +22395,7 @@ var require_tags = __commonJS({
 var require_Schema = __commonJS({
   "node_modules/yaml/dist/schema/Schema.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var map = require_map();
     var seq = require_seq();
     var string2 = require_string();
@@ -22408,9 +22408,9 @@ var require_Schema = __commonJS({
         this.knownTags = resolveKnownTags ? tags.coreKnownTags : {};
         this.tags = tags.getTags(customTags, this.name, merge);
         this.toStringOptions = toStringDefaults ?? null;
-        Object.defineProperty(this, identity.MAP, { value: map.map });
-        Object.defineProperty(this, identity.SCALAR, { value: string2.string });
-        Object.defineProperty(this, identity.SEQ, { value: seq.seq });
+        Object.defineProperty(this, identity2.MAP, { value: map.map });
+        Object.defineProperty(this, identity2.SCALAR, { value: string2.string });
+        Object.defineProperty(this, identity2.SEQ, { value: seq.seq });
         this.sortMapEntries = typeof sortMapEntries === "function" ? sortMapEntries : sortMapEntries === true ? sortMapEntriesByKey : null;
       }
       clone() {
@@ -22427,7 +22427,7 @@ var require_Schema = __commonJS({
 var require_stringifyDocument = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyDocument.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyDocument(doc, options) {
@@ -22454,7 +22454,7 @@ var require_stringifyDocument = __commonJS({
       let chompKeep = false;
       let contentComment = null;
       if (doc.contents) {
-        if (identity.isNode(doc.contents)) {
+        if (identity2.isNode(doc.contents)) {
           if (doc.contents.spaceBefore && hasDirectives)
             lines.push("");
           if (doc.contents.commentBefore) {
@@ -22509,7 +22509,7 @@ var require_Document = __commonJS({
     "use strict";
     var Alias = require_Alias();
     var Collection = require_Collection();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var toJS = require_toJS();
     var Schema = require_Schema();
@@ -22524,7 +22524,7 @@ var require_Document = __commonJS({
         this.comment = null;
         this.errors = [];
         this.warnings = [];
-        Object.defineProperty(this, identity.NODE_TYPE, { value: identity.DOC });
+        Object.defineProperty(this, identity2.NODE_TYPE, { value: identity2.DOC });
         let _replacer = null;
         if (typeof replacer === "function" || Array.isArray(replacer)) {
           _replacer = replacer;
@@ -22560,7 +22560,7 @@ var require_Document = __commonJS({
        */
       clone() {
         const copy = Object.create(_Document.prototype, {
-          [identity.NODE_TYPE]: { value: identity.DOC }
+          [identity2.NODE_TYPE]: { value: identity2.DOC }
         });
         copy.commentBefore = this.commentBefore;
         copy.comment = this.comment;
@@ -22570,7 +22570,7 @@ var require_Document = __commonJS({
         if (this.directives)
           copy.directives = this.directives.clone();
         copy.schema = this.schema.clone();
-        copy.contents = identity.isNode(this.contents) ? this.contents.clone(copy.schema) : this.contents;
+        copy.contents = identity2.isNode(this.contents) ? this.contents.clone(copy.schema) : this.contents;
         if (this.range)
           copy.range = this.range.slice();
         return copy;
@@ -22633,7 +22633,7 @@ var require_Document = __commonJS({
           sourceObjects
         };
         const node = createNode.createNode(value, tag, ctx);
-        if (flow && identity.isCollection(node))
+        if (flow && identity2.isCollection(node))
           node.flow = true;
         setAnchors();
         return node;
@@ -22673,7 +22673,7 @@ var require_Document = __commonJS({
        * `true` (collections are always returned intact).
        */
       get(key, keepScalar) {
-        return identity.isCollection(this.contents) ? this.contents.get(key, keepScalar) : void 0;
+        return identity2.isCollection(this.contents) ? this.contents.get(key, keepScalar) : void 0;
       }
       /**
        * Returns item at `path`, or `undefined` if not found. By default unwraps
@@ -22682,14 +22682,14 @@ var require_Document = __commonJS({
        */
       getIn(path, keepScalar) {
         if (Collection.isEmptyPath(path))
-          return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path, keepScalar) : void 0;
+          return !keepScalar && identity2.isScalar(this.contents) ? this.contents.value : this.contents;
+        return identity2.isCollection(this.contents) ? this.contents.getIn(path, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
        */
       has(key) {
-        return identity.isCollection(this.contents) ? this.contents.has(key) : false;
+        return identity2.isCollection(this.contents) ? this.contents.has(key) : false;
       }
       /**
        * Checks if the document includes a value at `path`.
@@ -22697,7 +22697,7 @@ var require_Document = __commonJS({
       hasIn(path) {
         if (Collection.isEmptyPath(path))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path) : false;
+        return identity2.isCollection(this.contents) ? this.contents.hasIn(path) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -22804,7 +22804,7 @@ var require_Document = __commonJS({
       }
     };
     function assertCollection(contents) {
-      if (identity.isCollection(contents))
+      if (identity2.isCollection(contents))
         return true;
       throw new Error("Expected a YAML collection as document contents");
     }
@@ -23075,12 +23075,12 @@ var require_util_flow_indent_check = __commonJS({
 var require_util_map_includes = __commonJS({
   "node_modules/yaml/dist/compose/util-map-includes.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     function mapIncludes(ctx, items, search) {
       const { uniqueKeys } = ctx.options;
       if (uniqueKeys === false)
         return false;
-      const isEqual = typeof uniqueKeys === "function" ? uniqueKeys : (a, b) => a === b || identity.isScalar(a) && identity.isScalar(b) && a.value === b.value;
+      const isEqual = typeof uniqueKeys === "function" ? uniqueKeys : (a, b) => a === b || identity2.isScalar(a) && identity2.isScalar(b) && a.value === b.value;
       return items.some((pair) => isEqual(pair.key, search));
     }
     exports2.mapIncludes = mapIncludes;
@@ -23293,7 +23293,7 @@ var require_resolve_end = __commonJS({
 var require_resolve_flow_collection = __commonJS({
   "node_modules/yaml/dist/compose/resolve-flow-collection.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var YAMLMap = require_YAMLMap();
     var YAMLSeq = require_YAMLSeq();
@@ -23372,7 +23372,7 @@ var require_resolve_flow_collection = __commonJS({
             }
             if (prevItemComment) {
               let prev = coll.items[coll.items.length - 1];
-              if (identity.isPair(prev))
+              if (identity2.isPair(prev))
                 prev = prev.value ?? prev.key;
               if (prev.comment)
                 prev.comment += "\n" + prevItemComment;
@@ -23487,7 +23487,7 @@ var require_resolve_flow_collection = __commonJS({
 var require_compose_collection = __commonJS({
   "node_modules/yaml/dist/compose/compose-collection.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var YAMLMap = require_YAMLMap();
     var YAMLSeq = require_YAMLSeq();
@@ -23537,7 +23537,7 @@ var require_compose_collection = __commonJS({
       }
       const coll = resolveCollection(CN, ctx, token, onError, tagName, tag);
       const res = tag.resolve?.(coll, (msg) => onError(tagToken, "TAG_RESOLVE_FAILED", msg), ctx.options) ?? coll;
-      const node = identity.isNode(res) ? res : new Scalar.Scalar(res);
+      const node = identity2.isNode(res) ? res : new Scalar.Scalar(res);
       node.range = coll.range;
       node.tag = tagName;
       if (tag?.format)
@@ -23956,7 +23956,7 @@ var require_resolve_flow_scalar = __commonJS({
 var require_compose_scalar = __commonJS({
   "node_modules/yaml/dist/compose/compose-scalar.js"(exports2) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var resolveBlockScalar = require_resolve_block_scalar();
     var resolveFlowScalar = require_resolve_flow_scalar();
@@ -23965,17 +23965,17 @@ var require_compose_scalar = __commonJS({
       const tagName = tagToken ? ctx.directives.tagName(tagToken.source, (msg) => onError(tagToken, "TAG_RESOLVE_FAILED", msg)) : null;
       let tag;
       if (ctx.options.stringKeys && ctx.atKey) {
-        tag = ctx.schema[identity.SCALAR];
+        tag = ctx.schema[identity2.SCALAR];
       } else if (tagName)
         tag = findScalarTagByName(ctx.schema, value, tagName, tagToken, onError);
       else if (token.type === "scalar")
         tag = findScalarTagByTest(ctx, value, token, onError);
       else
-        tag = ctx.schema[identity.SCALAR];
+        tag = ctx.schema[identity2.SCALAR];
       let scalar;
       try {
         const res = tag.resolve(value, (msg) => onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg), ctx.options);
-        scalar = identity.isScalar(res) ? res : new Scalar.Scalar(res);
+        scalar = identity2.isScalar(res) ? res : new Scalar.Scalar(res);
       } catch (error2) {
         const msg = error2 instanceof Error ? error2.message : String(error2);
         onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg);
@@ -23995,7 +23995,7 @@ var require_compose_scalar = __commonJS({
     }
     function findScalarTagByName(schema, value, tagName, tagToken, onError) {
       if (tagName === "!")
-        return schema[identity.SCALAR];
+        return schema[identity2.SCALAR];
       const matchWithTest = [];
       for (const tag of schema.tags) {
         if (!tag.collection && tag.tag === tagName) {
@@ -24014,12 +24014,12 @@ var require_compose_scalar = __commonJS({
         return kt;
       }
       onError(tagToken, "TAG_RESOLVE_FAILED", `Unresolved tag: ${tagName}`, tagName !== "tag:yaml.org,2002:str");
-      return schema[identity.SCALAR];
+      return schema[identity2.SCALAR];
     }
     function findScalarTagByTest({ atKey, directives, schema }, value, token, onError) {
-      const tag = schema.tags.find((tag2) => (tag2.default === true || atKey && tag2.default === "key") && tag2.test?.test(value)) || schema[identity.SCALAR];
+      const tag = schema.tags.find((tag2) => (tag2.default === true || atKey && tag2.default === "key") && tag2.test?.test(value)) || schema[identity2.SCALAR];
       if (schema.compat) {
-        const compat = schema.compat.find((tag2) => tag2.default && tag2.test?.test(value)) ?? schema[identity.SCALAR];
+        const compat = schema.compat.find((tag2) => tag2.default && tag2.test?.test(value)) ?? schema[identity2.SCALAR];
         if (tag.tag !== compat.tag) {
           const ts = directives.tagString(tag.tag);
           const cs = directives.tagString(compat.tag);
@@ -24068,7 +24068,7 @@ var require_compose_node = __commonJS({
   "node_modules/yaml/dist/compose/compose-node.js"(exports2) {
     "use strict";
     var Alias = require_Alias();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var composeCollection = require_compose_collection();
     var composeScalar = require_compose_scalar();
     var resolveEnd = require_resolve_end();
@@ -24114,7 +24114,7 @@ var require_compose_node = __commonJS({
       node ?? (node = composeEmptyNode(ctx, token.offset, void 0, null, props, onError));
       if (anchor && node.anchor === "")
         onError(anchor, "BAD_ALIAS", "Anchor cannot be an empty string");
-      if (atKey && ctx.options.stringKeys && (!identity.isScalar(node) || typeof node.value !== "string" || node.tag && node.tag !== "tag:yaml.org,2002:str")) {
+      if (atKey && ctx.options.stringKeys && (!identity2.isScalar(node) || typeof node.value !== "string" || node.tag && node.tag !== "tag:yaml.org,2002:str")) {
         const msg = "With stringKeys, all keys must be strings";
         onError(tag ?? token, "NON_STRING_KEY", msg);
       }
@@ -24220,7 +24220,7 @@ var require_composer = __commonJS({
     var directives = require_directives();
     var Document = require_Document();
     var errors = require_errors2();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var composeDoc = require_compose_doc();
     var resolveEnd = require_resolve_end();
     function getErrorPos(src) {
@@ -24282,9 +24282,9 @@ var require_composer = __commonJS({
 ${comment}` : comment;
           } else if (afterEmptyLine || doc.directives.docStart || !dc) {
             doc.commentBefore = comment;
-          } else if (identity.isCollection(dc) && !dc.flow && dc.items.length > 0) {
+          } else if (identity2.isCollection(dc) && !dc.flow && dc.items.length > 0) {
             let it = dc.items[0];
-            if (identity.isPair(it))
+            if (identity2.isPair(it))
               it = it.key;
             const cb = it.commentBefore;
             it.commentBefore = cb ? `${comment}
@@ -26332,7 +26332,7 @@ var require_public_api = __commonJS({
     var Document = require_Document();
     var errors = require_errors2();
     var log = require_log();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var lineCounter = require_line_counter();
     var parser = require_parser();
     function parseOptions(options) {
@@ -26410,7 +26410,7 @@ var require_public_api = __commonJS({
         if (!keepUndefined)
           return void 0;
       }
-      if (identity.isDocument(value) && !_replacer)
+      if (identity2.isDocument(value) && !_replacer)
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
@@ -26430,7 +26430,7 @@ var require_dist = __commonJS({
     var Schema = require_Schema();
     var errors = require_errors2();
     var Alias = require_Alias();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var Scalar = require_Scalar();
     var YAMLMap = require_YAMLMap();
@@ -26448,14 +26448,14 @@ var require_dist = __commonJS({
     exports2.YAMLParseError = errors.YAMLParseError;
     exports2.YAMLWarning = errors.YAMLWarning;
     exports2.Alias = Alias.Alias;
-    exports2.isAlias = identity.isAlias;
-    exports2.isCollection = identity.isCollection;
-    exports2.isDocument = identity.isDocument;
-    exports2.isMap = identity.isMap;
-    exports2.isNode = identity.isNode;
-    exports2.isPair = identity.isPair;
-    exports2.isScalar = identity.isScalar;
-    exports2.isSeq = identity.isSeq;
+    exports2.isAlias = identity2.isAlias;
+    exports2.isCollection = identity2.isCollection;
+    exports2.isDocument = identity2.isDocument;
+    exports2.isMap = identity2.isMap;
+    exports2.isNode = identity2.isNode;
+    exports2.isPair = identity2.isPair;
+    exports2.isScalar = identity2.isScalar;
+    exports2.isSeq = identity2.isSeq;
     exports2.Pair = Pair.Pair;
     exports2.Scalar = Scalar.Scalar;
     exports2.YAMLMap = YAMLMap.YAMLMap;
@@ -27963,9 +27963,140 @@ async function cleanupTailscale(directory, exec) {
   await (0, import_promises3.writeFile)((0, import_node_path2.join)(directory, "cleaned"), "true");
 }
 
+// src/stages.ts
+var metadataKeys = ["committed", "run_created", "job_started"];
+var buildKeys = ["build_started", "build_finished", "push_started", "push_finished"];
+function invalid2(message) {
+  throw new ActionError("invalid_stage_input", "inputs", message);
+}
+function readStage(value) {
+  switch (value || "release") {
+    case "release":
+      return "release";
+    case "plan":
+      return "plan";
+    case "build":
+      return "build";
+    case "finalize":
+      return "finalize";
+    default:
+      return invalid2("stage must be release, plan, build, or finalize");
+  }
+}
+function decode(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return invalid2("Expected JSON from a preceding release stage");
+  }
+}
+function identity(record) {
+  return {
+    app: record.app,
+    repository: record.source.repository,
+    revision: record.source.revision,
+    runId: record.run.id,
+    attempt: record.run.attempt,
+    version: record.version
+  };
+}
+function matchesRun(value, record) {
+  const { version: version2, ...current } = identity(record);
+  return Object.entries(current).every(([k, v]) => value[k] === v) && typeof value.version === "string" && /^\d{4}\.\d{1,2}\.\d{1,2}-\d+\.\d+$/.test(value.version) && value.version.slice(value.version.indexOf("-")) === version2.slice(version2.indexOf("-"));
+}
+function times(keys, timeline) {
+  return Object.fromEntries(keys.map((key) => [key, timeline[key]]));
+}
+function hasTimes(keys, value) {
+  return !!value && keys.every(
+    (key) => typeof value[key] === "string" && Number.isFinite(Date.parse(value[key])) && new Date(value[key]).toISOString() === value[key]
+  );
+}
+function createPlan(record, names, incremental) {
+  return {
+    ...identity(record),
+    names,
+    incremental,
+    metadata: times(metadataKeys, record.timeline),
+    runner: record.run.runner
+  };
+}
+function readPlan(raw, inputs, record) {
+  const plan = decode(raw);
+  if (!plan || !matchesRun(plan, record))
+    return invalid2("Plan belongs to a different release run or attempt. Re-run all jobs.");
+  const configured = inputs.components.map(({ name: name2 }) => name2);
+  const incremental = plan.incremental;
+  const retain = incremental?.retain ?? [];
+  if (!Array.isArray(plan.names) || !plan.names.length || !hasTimes(metadataKeys, plan.metadata) || typeof plan.runner !== "string" || incremental !== void 0 && (!incremental || typeof incremental.revision !== "string" || !commitShaPattern.test(incremental.revision) || typeof incremental.state !== "string" || !/^[a-f0-9]{64}$/.test(incremental.state) || !Array.isArray(incremental.retain) || !retain.length) || (/* @__PURE__ */ new Set([...plan.names, ...retain])).size !== configured.length || plan.names.length + retain.length !== configured.length || configured.some((name2) => !plan.names.includes(name2) && !retain.includes(name2))) return invalid2("Plan must partition the configured release components");
+  record.version = plan.version;
+  return {
+    ...plan,
+    incremental: incremental && { revision: incremental.revision, state: incremental.state, retain }
+  };
+}
+function createBuildResult(record) {
+  return {
+    ...identity(record),
+    component: record.components[0],
+    timeline: times(buildKeys, record.timeline)
+  };
+}
+var stats = [
+  "layers",
+  "layers_reused",
+  "image_bytes",
+  "pushed_bytes",
+  "cache_hit_steps",
+  "cache_miss_steps",
+  "build_seconds",
+  "push_seconds"
+];
+function collectBuilds(raw, plan, inputs, record) {
+  const results = decode(raw);
+  if (!Array.isArray(results) || results.length !== plan.names.length)
+    return invalid2("Expected exactly one build result for each planned component");
+  for (const result of results) {
+    if (!result || !matchesRun(result, record) || result.version !== plan.version)
+      return invalid2("Build result belongs to a different release run, attempt, or version. Re-run all jobs.");
+    const c = result.component;
+    if (!c || !plan.names.includes(c.name) || c.image !== imageName(inputs.imagePrefix, c.name, inputs.components.length) || c.platform !== inputs.platform || typeof c.digest !== "string" || !/^sha256:[a-f0-9]{64}$/.test(c.digest) || stats.some((key) => !Number.isFinite(c[key]) || c[key] < 0) || !hasTimes(buildKeys, result.timeline) || buildKeys.some((key, i) => i > 0 && result.timeline[buildKeys[i - 1]] > result.timeline[key])) return invalid2("Invalid planned component build result");
+  }
+  const ordered = plan.names.map((name2) => results.find((result) => result?.component.name === name2));
+  if (ordered.some((result) => !result))
+    return invalid2("Expected exactly one build result for each planned component");
+  for (const key of metadataKeys) record.timeline[key] = plan.metadata[key];
+  record.source.committed_at = plan.metadata.committed;
+  record.run.runner = plan.runner;
+  for (const result of ordered) {
+    const { component, timeline } = result;
+    const { name: name2, image, digest, platform: platform2 } = component;
+    record.components.push({
+      name: name2,
+      image,
+      digest,
+      platform: platform2,
+      layers: component.layers,
+      layers_reused: component.layers_reused,
+      image_bytes: component.image_bytes,
+      pushed_bytes: component.pushed_bytes,
+      cache_hit_steps: component.cache_hit_steps,
+      cache_miss_steps: component.cache_miss_steps,
+      build_seconds: component.build_seconds,
+      push_seconds: component.push_seconds
+    });
+    for (const key of buildKeys) {
+      const current = record.timeline[key];
+      const value = timeline[key];
+      const earlier = key === "build_started" || key === "push_started";
+      if (!current || (earlier ? value < current : value > current)) record.timeline[key] = value;
+    }
+  }
+}
+
 // src/action.ts
 var UPSTREAM_REVISION_LABEL = "io.github.correctroadh.app-release-action.upstream-revision";
-async function execute(inputs, record, token, directory, deps) {
+async function execute(inputs, record, token, directory, deps, stage = "release", stageInputs = { plan: "", component: "", results: "" }) {
   if (process.platform !== "linux" || !["x64", "arm64"].includes(process.arch))
     throw new ActionError(
       "unsupported_runner",
@@ -27974,39 +28105,39 @@ async function execute(inputs, record, token, directory, deps) {
     );
   if (!token)
     throw new ActionError("missing_token", "setup", "github-token is required");
+  if (stage === "build") {
+    const plan = readPlan(stageInputs.plan, inputs, record);
+    const component = inputs.components.find(({ name: name2 }) => name2 === stageInputs.component && plan.names.includes(name2));
+    if (!component)
+      throw new ActionError("invalid_stage_input", "inputs", "build-component must be in the plan");
+    await build(inputs, [component], record, token, directory, deps);
+    record.result.status = "built";
+    return;
+  }
+  if (!inputs.deploy && stage !== "release")
+    throw new ActionError("invalid_stage_input", "inputs", "plan and finalize require deploy=true");
+  if (stage === "finalize") {
+    const plan = readPlan(stageInputs.plan, inputs, record);
+    collectBuilds(stageInputs.results, plan, inputs, record);
+    await connect(inputs, directory, deps);
+    await submit(inputs, record, deps, plan.incremental);
+    return;
+  }
   let buildComponents = inputs.components;
   let incremental;
   if (inputs.deploy) {
-    if (inputs.network === "tailscale") {
-      const tailscaleDir = (0, import_node_path3.join)(directory, "tailscale");
-      await (0, import_promises4.mkdir)(tailscaleDir, { recursive: true });
-      await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
-      deps.state("tailscale", tailscaleDir);
-      await connectTailscale(
-        tailscaleDir,
-        inputs,
-        deps.exec,
-        deps.existingTailscale
-      );
-    }
+    await connect(inputs, directory, deps);
     const componentNames = inputs.components.map((component) => component.name);
     const baseline = await preflight(
       inputs.app,
       componentNames,
       inputs.deployerUrl,
       inputs.timeoutMs,
-      {
-        fetch: deps.fetch,
-        token: () => oidc("app-deployer", deps.fetch),
-        now: () => deps.now().getTime(),
-        sleep: deps.sleep
-      }
+      client(deps)
     );
     if (baseline && baseline.revision === inputs.incrementalBase && inputs.changedComponents?.length) {
       const changed = new Set(inputs.changedComponents);
-      const updated = inputs.components.filter(
-        (component) => changed.has(component.name)
-      );
+      const updated = inputs.components.filter((component) => changed.has(component.name));
       const retain = componentNames.filter((name2) => !changed.has(name2));
       if (updated.length === inputs.changedComponents.length && retain.length > 0) {
         buildComponents = updated;
@@ -28014,13 +28145,43 @@ async function execute(inputs, record, token, directory, deps) {
       }
     }
   }
-  const tools = (0, import_node_path3.join)(directory, "tools");
-  const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
+  if (stage === "plan") {
+    await readMetadata(record, token, deps);
+    record.result.status = "planned";
+    return createPlan(record, buildComponents.map(({ name: name2 }) => name2), incremental);
+  }
+  await build(inputs, buildComponents, record, token, directory, deps, true);
+  record.durations = durations(record.timeline);
+  if (inputs.deploy) await submit(inputs, record, deps, incremental);
+  else record.result.status = "built";
+}
+function client(deps) {
+  return {
+    fetch: deps.fetch,
+    token: () => oidc("app-deployer", deps.fetch),
+    now: () => deps.now().getTime(),
+    sleep: deps.sleep
+  };
+}
+async function connect(inputs, directory, deps) {
+  if (inputs.network === "direct") return;
+  const tailscaleDir = (0, import_node_path3.join)(directory, "tailscale");
+  await (0, import_promises4.mkdir)(tailscaleDir, { recursive: true });
+  await deps.prepareTailscale(tailscaleDir, deps.exec, deps.fetch);
+  deps.state("tailscale", tailscaleDir);
+  await connectTailscale(tailscaleDir, inputs, deps.exec, deps.existingTailscale);
+}
+async function readMetadata(record, token, deps) {
   try {
     await metadata(record, token, process.env, deps.fetch);
   } catch (error2) {
     throw failure(error2, "metadata");
   }
+}
+async function build(inputs, buildComponents, record, token, directory, deps, includeMetadata = false) {
+  const tools = (0, import_node_path3.join)(directory, "tools");
+  const regctl = await deps.installRegctl(tools, process.arch, deps.fetch);
+  if (includeMetadata) await readMetadata(record, token, deps);
   const builder = `app-release-${(0, import_node_crypto2.randomUUID)()}`;
   deps.state("builder", builder);
   try {
@@ -28056,7 +28217,7 @@ async function execute(inputs, record, token, directory, deps) {
       if (inputs.upstreamRevision)
         labels[UPSTREAM_REVISION_LABEL] = inputs.upstreamRevision;
       record.timeline.build_started ??= buildStart.toISOString();
-      let stats = { cache_hit_steps: 0, cache_miss_steps: 0 };
+      let stats2 = { cache_hit_steps: 0, cache_miss_steps: 0 };
       try {
         deps.log(`Building ${component.name}`);
         const buildSecrets = inputs.buildSecrets ?? [];
@@ -28092,7 +28253,7 @@ async function execute(inputs, record, token, directory, deps) {
           env: secretOptions.env,
           suppressFailureDetail: buildSecrets.length > 0
         });
-        stats = cacheStats(`${output.stdout}
+        stats2 = cacheStats(`${output.stdout}
 ${output.stderr}`);
       } catch (error2) {
         if (error2 instanceof ActionError && error2.detail && !inputs.buildSecrets?.length)
@@ -28119,7 +28280,7 @@ ${error2.detail}
           digest: "",
           platform: inputs.platform,
           ...layerStats,
-          ...stats,
+          ...stats2,
           build_seconds: buildSeconds,
           push_seconds: 0
         };
@@ -28179,21 +28340,13 @@ ${error2.detail}
     });
     deps.state("builder", "");
   }
-  record.durations = durations(record.timeline);
-  if (!inputs.deploy) {
-    record.result.status = "built";
-    return;
-  }
+}
+async function submit(inputs, record, deps, incremental) {
   await deploy(
     record,
     inputs.deployerUrl,
     inputs.timeoutMs,
-    {
-      fetch: deps.fetch,
-      token: () => oidc("app-deployer", deps.fetch),
-      now: () => deps.now().getTime(),
-      sleep: deps.sleep
-    },
+    client(deps),
     (r) => {
       record.release_id = r.release_id;
       Object.assign(record.timeline, r.timeline);
@@ -28435,19 +28588,30 @@ async function runAction(report = reporter, overrides = {}) {
     result: { status: "failed", infra_commit: "", error: null }
   };
   let problem;
+  let stage = "release";
+  let plan;
   const capture = (error2, phase) => {
     problem ??= failure(error2, phase);
   };
   try {
-    const inputs = parseInputs(report.input);
+    stage = readStage(report.input("stage"));
+    const inputs = parseInputs(
+      (key) => stage === "build" && key === "deploy" ? "false" : report.input(key)
+    );
     for (const secret of inputs.buildSecrets ?? []) setSecret(secret.value);
     record = initialRecord(inputs, env, deps.now());
-    await execute(
+    plan = await execute(
       inputs,
       record,
       report.input("github-token") || env.GITHUB_TOKEN || "",
       work,
-      deps
+      deps,
+      stage,
+      {
+        plan: report.input("plan"),
+        component: report.input("build-component"),
+        results: report.input("build-results")
+      }
     );
   } catch (error2) {
     capture(error2, "action");
@@ -28486,7 +28650,8 @@ async function runAction(report = reporter, overrides = {}) {
   await (0, import_promises6.writeFile)(recordPath, `${JSON.stringify(record, null, 2)}
 `);
   try {
-    await report.artifact(recordPath, directory);
+    if (stage === "release" || stage === "finalize")
+      await report.artifact(recordPath, directory);
   } catch {
     capture(
       new ActionError(
@@ -28511,7 +28676,9 @@ async function runAction(report = reporter, overrides = {}) {
         record.components.filter((c) => c.digest).map((c) => [c.name, c.digest])
       )
     ),
-    record: recordPath
+    record: recordPath,
+    ...plan && !problem ? { plan: JSON.stringify(plan), "build-components": JSON.stringify(plan.names) } : {},
+    ...stage === "build" && !problem ? { "build-result": JSON.stringify(createBuildResult(record)) } : {}
   }))
     report.output(key, value);
   if (env.GITHUB_STEP_SUMMARY)

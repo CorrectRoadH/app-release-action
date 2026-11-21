@@ -29,6 +29,8 @@ it.each([
   { scenario: "empty changes", changes: "[]" },
   { scenario: "all components changed", changes: JSON.stringify(names) },
   { scenario: "build-only", buildOnly: true },
+  { scenario: "matrix with a matching baseline", matrix: true, incremental: true },
+  { scenario: "matrix falling back to every component", matrix: true, legacy: true },
 ])("builds, pushes and reports the expected components with $scenario", async (test) => {
   const directory = await mkdtemp(join(tmpdir(), "app-release-incremental-"));
   try {
@@ -67,7 +69,11 @@ it.each([
     const failed = vi.fn();
     const exec: Run = async (_command, args) => {
       if (args[1] === "build") {
-        built.push(args[args.indexOf("--file") + 1]);
+        const file = args[args.indexOf("--file") + 1];
+        built.push(file);
+        const name = file.split("/")[0];
+        expect(args[args.indexOf("--cache-from") + 1]).toBe(`type=gha,scope=reader-${name}`);
+        expect(args[args.indexOf("--cache-to") + 1]).toBe(`type=gha,mode=max,scope=reader-${name}`);
         const output = args[args.indexOf("--output") + 1];
         const oci = output.slice("type=oci,dest=".length, -",tar=false".length);
         await mkdir(oci);
@@ -106,19 +112,65 @@ it.each([
       return Response.json(manifest);
     };
 
-    await runAction({
+    const artifact = vi.fn(async () => {});
+    const invoke = (time = timestamp) => runAction({
       input: (key) => inputs[key] ?? "",
       output: (key, value) => { outputs.set(key, value); },
       state: vi.fn(), log: vi.fn(), failed,
-      artifact: async () => {},
+      artifact,
     }, {
       exec,
       fetch: fetcher,
-      now: () => new Date(timestamp),
+      now: () => new Date(time),
       installRegctl: async () => "regctl",
     });
 
     const updated = test.incremental ? ["app"] : names;
+    if (test.matrix) {
+      inputs.stage = "plan";
+      await invoke();
+      expect(outputs.get("status")).toBe("planned");
+      expect(built).toEqual([]);
+      expect(requests).toEqual([{ app: "reader", components: names }]);
+      expect(artifact).not.toHaveBeenCalled();
+      expect(JSON.parse(outputs.get("build-components")!)).toEqual(updated);
+      inputs.plan = outputs.get("plan")!;
+      inputs.stage = "build";
+      const results: Record<string, unknown>[] = [];
+      for (const [i, component] of updated.entries()) {
+        inputs["build-component"] = component;
+        await invoke(`2026-01-02T00:00:0${i}Z`);
+        expect(outputs.get("status")).toBe("built");
+        results.unshift(JSON.parse(outputs.get("build-result")!));
+      }
+      expect(requests).toHaveLength(1);
+      expect(artifact).not.toHaveBeenCalled();
+
+      inputs.stage = "finalize";
+      const invalidResults = [results.slice(1), [{ ...results[0], version: "2026.1.2-42.2" }, ...results.slice(1)]];
+      if (results.length > 1) invalidResults.push(results.map(() => results[0]));
+      for (const invalid of invalidResults) {
+        inputs["build-results"] = JSON.stringify(invalid);
+        await invoke("2026-01-02T00:00:09Z");
+        expect(failed).toHaveBeenCalledWith(expect.stringContaining("invalid_stage_input"));
+        expect(requests).toHaveLength(1);
+        failed.mockClear();
+      }
+      inputs["build-results"] = JSON.stringify(results);
+      vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
+      await invoke("2026-01-02T00:00:09Z");
+      expect(failed).toHaveBeenCalledWith(expect.stringContaining("Re-run all jobs."));
+      expect(requests).toHaveLength(1);
+      failed.mockClear();
+      vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
+      artifact.mockClear();
+      await invoke("2026-01-02T00:00:09Z");
+      expect(outputs.get("version")).toBe(version);
+      expect(artifact).toHaveBeenCalledOnce();
+    } else {
+      await invoke();
+    }
+
     const status = test.conflict ? "failed" : test.buildOnly ? "built" : "healthy";
     expect(outputs.get("status")).toBe(status);
     if (test.conflict) expect(failed).toHaveBeenCalledWith(expect.stringContaining("base_changed"));
